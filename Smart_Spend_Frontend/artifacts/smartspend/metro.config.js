@@ -4,7 +4,7 @@ module.exports = (async () => {
   const config = await getDefaultConfig(__dirname);
   
   config.server = {
-    port: 8082, // Expo metro bundler port
+    port: parseInt(process.env.PORT || "5000", 10),
   };
   
   return config;

@@ -3,10 +3,11 @@ import * as Linking from "expo-linking";
 
 // ============================================================
 // BASE URL — used by the phone to reach your backend.
-// For local testing on your PC use `localhost`.
-// For phone testing, use your PC's LAN IP (example below).
+// On Replit, the backend is proxied through the dev domain.
 // ============================================================
-export const BASE_URL = "http://10.11.213.10:8081/api";
+export const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
+  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}:8080/api`
+  : "http://localhost:8080/api";
 
 // ============================================================
 // HTTP Helper
