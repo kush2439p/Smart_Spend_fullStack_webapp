@@ -35,12 +35,25 @@ const getCurrencySymbol = (currency: string) => {
   }
 };
 
-const MOCK_NOTIFICATIONS = (currencySymbol: string) => [
-  { id: "1", icon: "alert-triangle", color: Colors.expense, title: "Budget Alert", body: "Shopping is at 93% of monthly budget", time: "2m ago" },
-  { id: "2", icon: "trending-up", color: Colors.income, title: "Income Received", body: `Salary credited: ${currencySymbol}5,240`, time: "1h ago" },
-  { id: "3", icon: "cpu", color: Colors.primary, title: "AI Insight", body: "You spend 30% more on weekends. Consider a weekend budget.", time: "3h ago" },
-  { id: "4", icon: "check-circle", color: "#4ECDC4", title: "Budget On Track", body: "Transport budget: only 40% used this month", time: "1d ago" },
-];
+function getRealNotifications(budgetAlerts: { categoryName: string; percentage: number }[]) {
+  const notifs: { id: string; icon: string; color: string; title: string; body: string; time: string }[] = [];
+  if (!budgetAlerts) return notifs;
+  budgetAlerts.forEach((alert, i) => {
+    if (alert.percentage >= 75) {
+      const exceeded = alert.percentage >= 100;
+      const critical = alert.percentage >= 90;
+      notifs.push({
+        id: `budget-${i}`,
+        icon: exceeded ? "alert-octagon" : critical ? "alert-triangle" : "alert-circle",
+        color: exceeded || critical ? Colors.expense : Colors.warning,
+        title: exceeded ? "Budget Exceeded!" : critical ? "Budget Alert" : "Heads Up",
+        body: `${alert.categoryName} is at ${Math.round(alert.percentage)}% of your monthly budget`,
+        time: "Now",
+      });
+    }
+  });
+  return notifs;
+}
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -59,7 +72,6 @@ export default function DashboardScreen() {
 
   // Get currency symbol from user settings
   const currencySymbol = getCurrencySymbol(user?.currency || 'INR');
-  const notifications = MOCK_NOTIFICATIONS(currencySymbol);
 
   // ── animations ──
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -101,6 +113,7 @@ export default function DashboardScreen() {
   };
 
   const hasBudgetAlert = data.budgetAlerts?.length > 0;
+  const notifications = getRealNotifications(data.budgetAlerts || []);
   const unreadCount = notifications.length;
 
   return (
@@ -194,7 +207,7 @@ export default function DashboardScreen() {
           <QuickActionBtn icon="minus-circle" label="Expense" color={Colors.expense} emoji="💸" onPress={() => router.push({ pathname: "/add-transaction", params: { type: "expense" } })} />
           <QuickActionBtn icon="plus-circle" label="Income" color={Colors.income} emoji="💰" onPress={() => router.push({ pathname: "/add-transaction", params: { type: "income" } })} />
           <QuickActionBtn icon="camera" label="Receipt" color={Colors.primary} emoji="📷" onPress={() => router.push("/receipt-scanner")} />
-          <QuickActionBtn icon="cpu" label="Ask AI" color="#FD79A8" emoji="🤖" onPress={() => router.push("/(tabs)/ai")} />
+          <QuickActionBtn icon="message-square" label="Scan SMS" color="#00B894" emoji="💬" onPress={() => router.push("/sms-scanner")} />
         </View>
       </Animated.View>
 
@@ -378,24 +391,34 @@ function NotificationModal({ visible, onClose, insets, notifications }: { visibl
           <View style={styles.notifPanelHandle} />
           <View style={styles.notifPanelHeader}>
             <Text style={styles.notifPanelTitle}>Notifications</Text>
-            <View style={styles.notifCountBadge}>
-              <Text style={styles.notifCountText}>{notifications.length} new</Text>
-            </View>
+            {notifications.length > 0 && (
+              <View style={styles.notifCountBadge}>
+                <Text style={styles.notifCountText}>{notifications.length} alert{notifications.length > 1 ? "s" : ""}</Text>
+              </View>
+            )}
           </View>
-          {notifications.map((n: any) => (
-            <Pressable key={n.id} style={styles.notifItem}>
-              <View style={[styles.notifItemIcon, { backgroundColor: n.color + "18" }]}>
-                <Feather name={n.icon as any} size={18} color={n.color} />
-              </View>
-              <View style={styles.notifItemBody}>
-                <Text style={styles.notifItemTitle}>{n.title}</Text>
-                <Text style={styles.notifItemText}>{n.body}</Text>
-              </View>
-              <Text style={styles.notifItemTime}>{n.time}</Text>
-            </Pressable>
-          ))}
+          {notifications.length === 0 ? (
+            <View style={styles.notifEmptyState}>
+              <Feather name="bell-off" size={36} color={Colors.border} />
+              <Text style={styles.notifEmptyTitle}>All Clear!</Text>
+              <Text style={styles.notifEmptyText}>No alerts right now. You'll be notified when a budget is close to the limit or you receive a transaction.</Text>
+            </View>
+          ) : (
+            notifications.map((n: any) => (
+              <Pressable key={n.id} style={styles.notifItem}>
+                <View style={[styles.notifItemIcon, { backgroundColor: n.color + "18" }]}>
+                  <Feather name={n.icon as any} size={18} color={n.color} />
+                </View>
+                <View style={styles.notifItemBody}>
+                  <Text style={styles.notifItemTitle}>{n.title}</Text>
+                  <Text style={styles.notifItemText}>{n.body}</Text>
+                </View>
+                <Text style={styles.notifItemTime}>{n.time}</Text>
+              </Pressable>
+            ))
+          )}
           <Pressable style={styles.clearAllBtn} onPress={onClose}>
-            <Text style={styles.clearAllText}>Mark All as Read</Text>
+            <Text style={styles.clearAllText}>{notifications.length > 0 ? "Dismiss" : "Close"}</Text>
           </Pressable>
         </Animated.View>
       </Animated.View>
@@ -555,4 +578,7 @@ const styles = StyleSheet.create({
   notifItemTime: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 3 },
   clearAllBtn: { paddingVertical: 18, alignItems: "center" },
   clearAllText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.primary },
+  notifEmptyState: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24, gap: 12 },
+  notifEmptyTitle: { fontFamily: "Inter_700Bold", fontSize: 17, color: Colors.text },
+  notifEmptyText: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 20 },
 });

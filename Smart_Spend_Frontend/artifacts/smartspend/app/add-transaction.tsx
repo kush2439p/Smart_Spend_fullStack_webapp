@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -60,13 +61,11 @@ export default function AddTransactionScreen() {
         note,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Invalidate dashboard cache to refresh data
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
       router.back();
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert("Saved (Mock)", "Transaction will be saved when backend is connected.");
-      // Still invalidate cache even for mock data
       queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
       router.back();
     } finally {
@@ -75,145 +74,157 @@ export default function AddTransactionScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Feather name="x" size={24} color={Colors.text} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Add Transaction</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Type Toggle */}
-        <View style={styles.typeToggle}>
-          <Pressable
-            style={[styles.typeBtn, txType === "expense" && styles.typeBtnExpense]}
-            onPress={() => { setTxType("expense"); setSelectedCategory(null); }}
-          >
-            <Text style={[styles.typeBtnText, txType === "expense" && styles.typeBtnTextActive]}>Expense</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+    >
+      <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()}>
+            <Feather name="x" size={24} color={Colors.text} />
           </Pressable>
-          <Pressable
-            style={[styles.typeBtn, txType === "income" && styles.typeBtnIncome]}
-            onPress={() => { setTxType("income"); setSelectedCategory(null); }}
-          >
-            <Text style={[styles.typeBtnText, txType === "income" && styles.typeBtnTextActive]}>Income</Text>
-          </Pressable>
+          <Text style={styles.headerTitle}>Add Transaction</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        {/* Amount */}
-        <View style={styles.amountSection}>
-          <Text style={styles.currencySymbol}>₹</Text>
-          <TextInput
-            style={styles.amountInput}
-            placeholder="0.00"
-            placeholderTextColor={Colors.border}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            autoFocus
-          />
-        </View>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 20 }}
+        >
+          {/* Type Toggle */}
+          <View style={styles.typeToggle}>
+            <Pressable
+              style={[styles.typeBtn, txType === "expense" && styles.typeBtnExpense]}
+              onPress={() => { setTxType("expense"); setSelectedCategory(null); }}
+            >
+              <Text style={[styles.typeBtnText, txType === "expense" && styles.typeBtnTextActive]}>Expense</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.typeBtn, txType === "income" && styles.typeBtnIncome]}
+              onPress={() => { setTxType("income"); setSelectedCategory(null); }}
+            >
+              <Text style={[styles.typeBtnText, txType === "income" && styles.typeBtnTextActive]}>Income</Text>
+            </Pressable>
+          </View>
 
-        <View style={styles.form}>
-          {/* Title */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Title / Description</Text>
+          {/* Amount */}
+          <View style={styles.amountSection}>
+            <Text style={styles.currencySymbol}>₹</Text>
             <TextInput
-              style={styles.fieldInput}
-              placeholder="e.g. Starbucks Coffee"
-              placeholderTextColor={Colors.textSecondary}
-              value={title}
-              onChangeText={setTitle}
+              style={styles.amountInput}
+              placeholder="0.00"
+              placeholderTextColor={Colors.border}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              returnKeyType="next"
             />
           </View>
 
-          {/* Category Picker */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Category</Text>
-            <Pressable style={styles.fieldInput} onPress={() => setShowCategoryPicker(!showCategoryPicker)}>
-              {selectedCategory ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <View style={[styles.catIcon, { backgroundColor: selectedCategory.color + "20" }]}>
-                    <Text>{selectedCategory.icon}</Text>
+          <View style={styles.form}>
+            {/* Title */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Title / Description</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="e.g. Starbucks Coffee"
+                placeholderTextColor={Colors.textSecondary}
+                value={title}
+                onChangeText={setTitle}
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Category Picker */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Category</Text>
+              <Pressable style={styles.fieldInput} onPress={() => setShowCategoryPicker(!showCategoryPicker)}>
+                {selectedCategory ? (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View style={[styles.catIcon, { backgroundColor: selectedCategory.color + "20" }]}>
+                      <Text>{selectedCategory.icon}</Text>
+                    </View>
+                    <Text style={styles.fieldText}>{selectedCategory.name}</Text>
                   </View>
-                  <Text style={styles.fieldText}>{selectedCategory.name}</Text>
+                ) : (
+                  <Text style={{ color: Colors.textSecondary, fontFamily: "Inter_400Regular", fontSize: 15 }}>
+                    Select category...
+                  </Text>
+                )}
+              </Pressable>
+
+              {showCategoryPicker && (
+                <View style={styles.catGrid}>
+                  {filteredCats.map((cat) => (
+                    <Pressable
+                      key={cat.id}
+                      style={[
+                        styles.catGridItem,
+                        selectedCategory?.id === cat.id && { borderColor: cat.color, backgroundColor: cat.color + "15" },
+                      ]}
+                      onPress={() => { setSelectedCategory(cat); setShowCategoryPicker(false); }}
+                    >
+                      <View style={[styles.catIconLg, { backgroundColor: cat.color + "20" }]}>
+                        <Text style={{ fontSize: 22 }}>{cat.icon}</Text>
+                      </View>
+                      <Text style={styles.catName} numberOfLines={1}>{cat.name}</Text>
+                    </Pressable>
+                  ))}
                 </View>
+              )}
+            </View>
+
+            {/* Date */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Date</Text>
+              <TextInput
+                style={styles.fieldInput}
+                value={date}
+                onChangeText={setDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={Colors.textSecondary}
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Note */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Note (optional)</Text>
+              <TextInput
+                style={[styles.fieldInput, { height: 80, paddingTop: 12 }]}
+                placeholder="Add a note..."
+                placeholderTextColor={Colors.textSecondary}
+                value={note}
+                onChangeText={setNote}
+                multiline
+                textAlignVertical="top"
+                returnKeyType="done"
+              />
+            </View>
+
+            {/* Save Button inside scroll so keyboard doesn't cover it */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.saveBtn,
+                { backgroundColor: txType === "income" ? Colors.income : Colors.expense },
+                (pressed || saving) && { opacity: 0.85 },
+              ]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={{ color: Colors.textSecondary, fontFamily: "Inter_400Regular", fontSize: 15 }}>
-                  Select category...
-                </Text>
+                <Text style={styles.saveBtnText}>Save Transaction</Text>
               )}
             </Pressable>
-
-            {showCategoryPicker && (
-              <View style={styles.catGrid}>
-                {filteredCats.map((cat) => (
-                  <Pressable
-                    key={cat.id}
-                    style={[
-                      styles.catGridItem,
-                      selectedCategory?.id === cat.id && { borderColor: cat.color, backgroundColor: cat.color + "15" },
-                    ]}
-                    onPress={() => { setSelectedCategory(cat); setShowCategoryPicker(false); }}
-                  >
-                    <View style={[styles.catIconLg, { backgroundColor: cat.color + "20" }]}>
-                      <Text style={{ fontSize: 22 }}>{cat.icon}</Text>
-                    </View>
-                    <Text style={styles.catName} numberOfLines={1}>{cat.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
           </View>
-
-          {/* Date */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Date</Text>
-            <TextInput
-              style={styles.fieldInput}
-              value={date}
-              onChangeText={setDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={Colors.textSecondary}
-            />
-          </View>
-
-          {/* Note */}
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Note (optional)</Text>
-            <TextInput
-              style={[styles.fieldInput, { height: 80, paddingTop: 12 }]}
-              placeholder="Add a note..."
-              placeholderTextColor={Colors.textSecondary}
-              value={note}
-              onChangeText={setNote}
-              multiline
-            />
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* Save Button */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.saveBtn,
-            { backgroundColor: txType === "income" ? Colors.income : Colors.expense },
-            (pressed || saving) && { opacity: 0.85 },
-          ]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveBtnText}>Save Transaction</Text>
-          )}
-        </Pressable>
+        </ScrollView>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -239,7 +250,7 @@ const styles = StyleSheet.create({
   amountSection: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 20 },
   currencySymbol: { fontFamily: "Inter_700Bold", fontSize: 36, color: Colors.textSecondary, marginRight: 4 },
   amountInput: { fontFamily: "Inter_700Bold", fontSize: 52, color: Colors.text, minWidth: 120 },
-  form: { paddingHorizontal: 20, gap: 16, paddingBottom: 20 },
+  form: { paddingHorizontal: 20, gap: 16 },
   field: { gap: 8 },
   fieldLabel: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.text },
   fieldInput: {
@@ -269,7 +280,6 @@ const styles = StyleSheet.create({
   },
   catIconLg: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   catName: { fontFamily: "Inter_400Regular", fontSize: 10, color: Colors.text, textAlign: "center" },
-  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: Colors.card, borderTopWidth: 1, borderTopColor: Colors.border },
-  saveBtn: { paddingVertical: 17, borderRadius: 16, alignItems: "center" },
+  saveBtn: { paddingVertical: 17, borderRadius: 16, alignItems: "center", marginTop: 8, marginBottom: 8 },
   saveBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
 });

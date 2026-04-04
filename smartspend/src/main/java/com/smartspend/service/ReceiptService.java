@@ -24,105 +24,129 @@ public class ReceiptService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${google.vision.api-key}")
-    private String googleVisionApiKey;
-
     @Value("${ai.gemini.api-key}")
     private String geminiApiKey;
 
-    private static final String VISION_API_URL =
-            "https://vision.googleapis.com/v1/images:annotate?key=";
     private static final String GEMINI_API_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+
+    private static final String EXTRACTION_PROMPT =
+            "You are a financial receipt/bill scanner. Extract transaction details and return ONLY a valid JSON object " +
+            "with absolutely no extra text, no markdown, no code blocks:\n" +
+            "{\n" +
+            "  \"merchant\": \"store or company name (string)\",\n" +
+            "  \"amount\": total_amount_as_number_no_symbols,\n" +
+            "  \"date\": \"YYYY-MM-DD or null\",\n" +
+            "  \"category\": \"exactly one of: Food, Transport, Shopping, Entertainment, Healthcare, Utilities, Education, Travel, Groceries, Dining, Other\",\n" +
+            "  \"type\": \"expense or income\",\n" +
+            "  \"items\": [\"item1\", \"item2\"],\n" +
+            "  \"currency\": \"INR or USD etc\",\n" +
+            "  \"notes\": \"any extra info or empty string\"\n" +
+            "}\n" +
+            "Rules: amount must be a plain number (e.g. 250.50), date must be YYYY-MM-DD or null, type must be expense or income.";
 
     public Map<String, Object> scanReceipt(MultipartFile file) {
         try {
             String contentType = file.getContentType();
-            String extractedText;
 
             if (contentType != null && contentType.equalsIgnoreCase("application/pdf")) {
                 log.info("Processing PDF receipt");
-                extractedText = extractTextFromPdf(file.getBytes());
+                String text = extractTextFromPdf(file.getBytes());
+                if (text == null || text.isBlank()) {
+                    return errorResult("Could not extract text from this PDF. Make sure it is a text-based PDF, not a scanned image.");
+                }
+                log.info("PDF text extracted ({} chars), sending to Gemini", text.length());
+                return parseTextWithGemini(text);
             } else {
-                log.info("Processing image receipt, type={}", contentType);
+                log.info("Processing image receipt, contentType={}", contentType);
                 String base64Image = Base64.getEncoder().encodeToString(file.getBytes());
-                extractedText = callGoogleVisionApi(base64Image);
+                String mime = (contentType != null && !contentType.isBlank()) ? contentType : "image/jpeg";
+                return parseImageWithGemini(base64Image, mime);
             }
-
-            if (extractedText == null || extractedText.isBlank()) {
-                return errorResult("Could not read the receipt. Please try again with a clearer image.");
-            }
-
-            log.info("OCR extracted {} chars, sending to Gemini", extractedText.length());
-            return parseWithGemini(extractedText);
 
         } catch (Exception e) {
             log.error("Receipt scan failed: {}", e.getMessage(), e);
-            return errorResult("Could not read the receipt. Please try again with a clearer image.");
+            return errorResult("Could not process the receipt. Please try again with a clearer photo.");
         }
     }
 
     private String extractTextFromPdf(byte[] pdfBytes) throws Exception {
         try (PDDocument doc = Loader.loadPDF(pdfBytes)) {
             PDFTextStripper stripper = new PDFTextStripper();
-            stripper.setEndPage(1);
+            stripper.setEndPage(2);
             return stripper.getText(doc);
         }
     }
 
-    private String callGoogleVisionApi(String base64Image) throws Exception {
+    private Map<String, Object> parseImageWithGemini(String base64Image, String mimeType) throws Exception {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        Map<String, Object> image = Map.of("content", base64Image);
-        Map<String, Object> feature = Map.of("type", "TEXT_DETECTION", "maxResults", 1);
-        Map<String, Object> req = Map.of("image", image, "features", List.of(feature));
-        Map<String, Object> body = Map.of("requests", List.of(req));
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.exchange(
-                VISION_API_URL + googleVisionApiKey, HttpMethod.POST, entity, String.class);
-
-        JsonNode root = objectMapper.readTree(response.getBody());
-        JsonNode annotations = root.path("responses").get(0).path("textAnnotations");
-        if (annotations.isEmpty()) return "";
-        return annotations.get(0).path("description").asText();
-    }
-
-    private Map<String, Object> parseWithGemini(String ocrText) throws Exception {
-        String prompt = "Extract the following information from this receipt/bill text and return ONLY a valid JSON object with no extra text, no markdown, no code blocks:\n"
-                + "{\n"
-                + "  \"merchant\": \"store or company name\",\n"
-                + "  \"amount\": total amount as a number (no currency symbols),\n"
-                + "  \"date\": \"date in YYYY-MM-DD format or null if not found\",\n"
-                + "  \"category\": \"one of: Food, Transport, Shopping, Entertainment, Healthcare, Utilities, Education, Travel, Groceries, Dining, Other\",\n"
-                + "  \"type\": \"expense or income\",\n"
-                + "  \"items\": [\"list of purchased items if visible, max 5\"],\n"
-                + "  \"currency\": \"currency code like INR or USD\",\n"
-                + "  \"notes\": \"any other relevant info or empty string\"\n"
-                + "}\n\nReceipt text:\n" + ocrText;
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, Object> part = Map.of("text", prompt);
-        Map<String, Object> content = Map.of("parts", List.of(part));
-        Map<String, Object> body = Map.of("contents", List.of(content));
+        Map<String, Object> textPart = Map.of("text", EXTRACTION_PROMPT);
+        Map<String, Object> imageData = Map.of("mime_type", mimeType, "data", base64Image);
+        Map<String, Object> imagePart = Map.of("inline_data", imageData);
+        Map<String, Object> content = Map.of("parts", List.of(textPart, imagePart));
+        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 512);
+        Map<String, Object> body = Map.of("contents", List.of(content), "generationConfig", generationConfig);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         ResponseEntity<String> response = restTemplate.exchange(
                 GEMINI_API_URL + geminiApiKey, HttpMethod.POST, entity, String.class);
 
-        JsonNode root = objectMapper.readTree(response.getBody());
-        String rawText = root.path("candidates").get(0)
+        log.info("Gemini Vision response status: {}", response.getStatusCode());
+        return parseGeminiJsonResponse(response.getBody());
+    }
+
+    private Map<String, Object> parseTextWithGemini(String receiptText) throws Exception {
+        String fullPrompt = EXTRACTION_PROMPT + "\n\nReceipt/Bill text:\n" + receiptText;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> part = Map.of("text", fullPrompt);
+        Map<String, Object> content = Map.of("parts", List.of(part));
+        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 512);
+        Map<String, Object> body = Map.of("contents", List.of(content), "generationConfig", generationConfig);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        ResponseEntity<String> response = restTemplate.exchange(
+                GEMINI_API_URL + geminiApiKey, HttpMethod.POST, entity, String.class);
+
+        log.info("Gemini Text response status: {}", response.getStatusCode());
+        return parseGeminiJsonResponse(response.getBody());
+    }
+
+    private Map<String, Object> parseGeminiJsonResponse(String responseBody) throws Exception {
+        JsonNode root = objectMapper.readTree(responseBody);
+
+        if (root.has("error")) {
+            String errMsg = root.path("error").path("message").asText("Gemini API error");
+            log.error("Gemini API error: {}", errMsg);
+            return errorResult("AI processing failed: " + errMsg);
+        }
+
+        JsonNode candidates = root.path("candidates");
+        if (candidates.isEmpty()) {
+            log.error("Gemini returned no candidates. Body: {}", responseBody);
+            return errorResult("AI could not extract data from this receipt. Please enter details manually.");
+        }
+
+        String rawText = candidates.get(0)
                 .path("content").path("parts").get(0)
-                .path("text").asText();
+                .path("text").asText("{}");
 
         String json = rawText.trim()
                 .replaceAll("(?s)```json\\s*", "")
                 .replaceAll("(?s)```\\s*", "")
                 .trim();
 
+        int start = json.indexOf('{');
+        int end = json.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            json = json.substring(start, end + 1);
+        }
+
+        log.info("Extracted JSON from Gemini: {}", json);
         JsonNode parsed = objectMapper.readTree(json);
 
         Map<String, Object> result = new HashMap<>();
