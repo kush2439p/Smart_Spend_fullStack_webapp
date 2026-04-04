@@ -17,7 +17,11 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "com.anonymous.smartspend"
+      "package": "com.anonymous.smartspend",
+      "permissions": [
+        "android.permission.RECEIVE_SMS",
+        "android.permission.READ_SMS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
