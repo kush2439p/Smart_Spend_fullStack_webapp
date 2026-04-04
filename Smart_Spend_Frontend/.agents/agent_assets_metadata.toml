@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "xCKNV3kUsOiObN9FxVjox"
+uri = "file://SmartSpend-SpringBoot-Backend-Spec.md"
+type = "text"
+title = "SmartSpend — Spring Boot Backend Specification"

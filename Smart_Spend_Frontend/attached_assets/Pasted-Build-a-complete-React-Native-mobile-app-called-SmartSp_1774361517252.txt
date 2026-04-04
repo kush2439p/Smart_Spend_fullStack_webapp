@@ -1,0 +1,146 @@
+Build a complete React Native mobile app called "SmartSpend" — a smart personal expense tracker. Use React Native CLI (not Expo). Use the following tech stack:
+
+TECH STACK:
+- React Native CLI
+- React Navigation (Stack + Bottom Tab Navigator)
+- React Native Paper or NativeWind for UI styling
+- React Native Chart Kit or Victory Native for graphs
+- Axios for API calls
+- AsyncStorage for token storage
+- React Native Camera for receipt scanning
+- React Native Permissions for SMS/notification access
+
+BACKEND BASE URL: http://localhost:8080/api (we will replace with real URL later)
+
+=== APP SCREENS ===
+
+1. SPLASH / ONBOARDING SCREEN
+- App logo "SmartSpend" with a clean minimal design
+- Tagline: "Your money, fully automated"
+- Get Started button → goes to Login
+
+2. AUTH SCREENS
+- Login screen: email + password, JWT token saved to AsyncStorage
+- Register screen: name, email, password, confirm password
+- Clean card-style forms, primary color theme
+
+3. DASHBOARD (Home Tab)
+- Top greeting: "Hey [Name] 👋"
+- Balance card showing: Total Balance, Income this month (green), Expense this month (red)
+- A line graph or area chart showing last 7 days spending trend
+- Quick action buttons: + Add Expense, + Add Income, Scan Receipt, Ask AI
+- Recent Transactions list (last 5), each showing: category icon, title, amount, date
+
+4. TRANSACTIONS TAB
+- Full transaction list with filters: All / Income / Expense
+- Filter by date range (This week / This month / Custom)
+- Filter by category (dropdown)
+- Each transaction card shows: icon, title, category badge, amount (red/green), date+time, source badge (Manual / AI / Receipt / SMS)
+- Swipe left to delete, tap to view full detail
+
+5. ADD TRANSACTION SCREEN (modal/sheet)
+- Toggle: Income or Expense
+- Amount input (large, prominent)
+- Title/description
+- Category picker (scrollable icons with names)
+- Date + Time picker
+- Note field (optional)
+- Source is set automatically
+- Save button
+
+6. RECEIPT SCANNER SCREEN
+- Camera view to take photo of receipt
+- After capture: show preview + "Processing..." loader
+- API call to POST /receipts/scan with image
+- Show parsed result: amount, merchant, date, suggested category
+- User can edit before confirming
+- Confirm → saves transaction
+
+7. AI ASSISTANT SCREEN (Chat Tab)
+- Chat interface (like WhatsApp)
+- User types: "spent 200 on food today" or "add 5000 salary income"
+- App sends to POST /ai/chat, gets response
+- AI response shown in chat bubble
+- If transaction is created, show a green confirmation card in chat
+- Suggested prompts shown at top: "What did I spend today?", "Add expense", "Show budget status"
+
+8. CATEGORIES SCREEN
+- Grid of category cards (icon + name + color)
+- Separate sections: Income Categories / Expense Categories
+- Each card shows: total transactions this month
+- Tap to see all transactions in that category
+- FAB (floating button) to create new category
+- New category form: name, type, color picker, icon picker
+
+9. BUDGET GOALS SCREEN
+- List of budget goals per category
+- Each shows: category name, limit amount, current spent, progress bar (green → yellow → red)
+- Add new budget goal button
+- Alert badge if any category is over 80% of budget
+
+10. ANALYTICS / GRAPHS SCREEN
+- Monthly summary cards at top (income vs expense)
+- Pie chart: expense breakdown by category
+- Bar chart: monthly income vs expense comparison (last 6 months)
+- Line chart: daily spending this month
+- Category cards ranked by spending (highest to lowest)
+
+11. PROFILE / SETTINGS SCREEN
+- User name and email
+- Currency selector
+- Toggle: Auto-scan SMS for transactions (ON/OFF)
+- Toggle: Auto-scan Emails for transactions (ON/OFF)
+- Export data button (calls API, shows download options: PDF / Excel)
+- Budget alert notifications toggle
+- Logout button
+
+=== DESIGN SYSTEM ===
+- Primary color: #6C63FF (purple)
+- Income color: #00C897 (green)
+- Expense color: #FF6B6B (red/coral)
+- Background: #F8F9FF (light) with dark mode support
+- Cards: white with subtle shadow, 16px border radius
+- Typography: bold amounts, clean sans-serif labels
+- Bottom navigation: Home, Transactions, AI Chat, Analytics, Profile (5 tabs)
+- Smooth animations on screen transitions
+
+=== API INTEGRATION GUIDE ===
+All API calls need:
+- Header: Authorization: Bearer <token from AsyncStorage>
+- Base URL: http://localhost:8080/api
+
+Key endpoints to wire up:
+- POST /auth/login → save token
+- POST /auth/register
+- GET /transactions?page=0&size=20 → transaction list
+- POST /transactions → create transaction
+- DELETE /transactions/{id}
+- GET /categories → category list
+- POST /categories
+- GET /dashboard/summary → balance, income, expense totals
+- GET /analytics/daily?month=3&year=2026
+- GET /analytics/category-breakdown
+- POST /receipts/scan → multipart image upload
+- POST /ai/chat → { "message": "..." }
+- GET /budgets → budget goals list
+- POST /budgets
+- GET /insights → AI insight summary text
+
+=== SPECIAL FEATURES TO BUILD ===
+1. When app opens, request SMS permission. If granted, register a background listener that watches for messages matching patterns like "debited", "credited", "Rs.", "INR", "paid" — send to POST /sms/parse
+2. On AI chat screen, use a typing indicator animation while waiting for API response
+3. On transaction list, group by date (Today, Yesterday, older dates)
+4. Show a budget alert banner on dashboard if any category exceeds 80% of its budget
+5. Receipt scanner should show a scanning animation while processing
+
+Build this as a complete, production-quality app with proper folder structure:
+/src
+  /screens
+  /components
+  /navigation
+  /api
+  /hooks
+  /utils
+  /theme
+
+Make all screens fully functional with mock data fallback if API is not connected yet, so the UI is always visible and testable.

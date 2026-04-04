@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "SmartSpend"
+version = "1.0.0"
+id = "artifacts/smartspend"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 24623
+
+[services.development]
+run = "pnpm --filter @workspace/smartspend run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/smartspend", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/smartspend", "run", "serve" ]
+
+[services.env]
+PORT = "24623"
+BASE_PATH = "/"
