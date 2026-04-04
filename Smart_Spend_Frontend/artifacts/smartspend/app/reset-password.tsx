@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Alert,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -27,6 +26,8 @@ export default function ResetPasswordScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -39,37 +40,53 @@ export default function ResetPasswordScreen() {
 
   const handleResetPassword = async () => {
     Keyboard.dismiss();
+    setErrorMsg("");
     if (!token.trim()) {
-      Alert.alert("Error", "Please enter your reset token");
+      setErrorMsg("Please enter your reset token");
       return;
     }
     if (!password) {
-      Alert.alert("Error", "Please enter a new password");
+      setErrorMsg("Please enter a new password");
       return;
     }
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      setErrorMsg("Password must be at least 6 characters");
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
+      setErrorMsg("Passwords do not match");
       return;
     }
     setLoading(true);
     try {
       await authApi.resetPassword(token.trim(), password);
-      Alert.alert(
-        "Password Reset!",
-        "Your password has been reset successfully. Please login with your new password.",
-        [{ text: "Go to Login", onPress: () => router.replace("/login") }]
-      );
+      setSuccess(true);
     } catch (e: any) {
-      Alert.alert("Error", e?.message || "Failed to reset password. The token may have expired.");
+      setErrorMsg(e?.message || "Failed to reset password. The token may have expired.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ── SUCCESS STATE ──────────────────────────────────────────
+  if (success) {
+    return (
+      <Animated.View style={[styles.container, styles.centered, { opacity: fadeAnim, paddingHorizontal: 28 }]}>
+        <View style={[styles.iconCircle, { borderColor: Colors.success, backgroundColor: Colors.success + "20" }]}>
+          <Feather name="check-circle" size={48} color={Colors.success} />
+        </View>
+        <Text style={styles.heading}>Password Reset!</Text>
+        <Text style={styles.subtitle}>
+          Your password has been changed successfully. You can now log in with your new password.
+        </Text>
+        <Pressable style={[styles.submitBtn, { backgroundColor: Colors.success }]} onPress={() => router.replace("/login")}>
+          <Text style={styles.submitBtnText}>Go to Login</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
+  // ── FORM STATE ──────────────────────────────────────────────
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -88,7 +105,7 @@ export default function ResetPasswordScreen() {
         </Pressable>
 
         <View style={styles.iconContainer}>
-          <View style={styles.icon}>
+          <View style={styles.iconCircle}>
             <Feather name="unlock" size={40} color={Colors.primary} />
           </View>
         </View>
@@ -97,6 +114,14 @@ export default function ResetPasswordScreen() {
         <Text style={styles.subtitle}>Enter the reset token from your email and choose a new password.</Text>
 
         <View style={styles.form}>
+          {/* Error banner */}
+          {!!errorMsg && (
+            <View style={styles.errorBanner}>
+              <Feather name="alert-circle" size={16} color={Colors.error} style={{ marginRight: 8 }} />
+              <Text style={styles.errorBannerText}>{errorMsg}</Text>
+            </View>
+          )}
+
           {/* Reset Token */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Reset Token</Text>
@@ -112,7 +137,7 @@ export default function ResetPasswordScreen() {
                 autoCorrect={false}
               />
             </View>
-            <Text style={styles.helperText}>Copy the token from your email and paste it above</Text>
+            <Text style={styles.helperText}>Copy the token from the reset email and paste it above</Text>
           </View>
 
           {/* New Password */}
@@ -176,10 +201,11 @@ export default function ResetPasswordScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   content: { paddingHorizontal: 24, flexGrow: 1 },
-  backBtn: { marginBottom: 28 },
-  iconContainer: { alignItems: "center", marginBottom: 28 },
-  icon: {
+  backBtn: { marginBottom: 24 },
+  iconContainer: { alignItems: "center", marginBottom: 24 },
+  iconCircle: {
     width: 90,
     height: 90,
     borderRadius: 45,
@@ -189,8 +215,21 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.primary,
   },
-  heading: { fontFamily: "Inter_700Bold", fontSize: 28, color: Colors.text, textAlign: "center", marginBottom: 10 },
-  subtitle: { fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 32 },
+  heading: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 26,
+    color: Colors.text,
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 28,
+  },
   form: { gap: 20 },
   fieldGroup: { gap: 6 },
   label: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.text },
@@ -207,7 +246,26 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.text },
   eyeIcon: { padding: 4, marginLeft: 8 },
-  helperText: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 4 },
+  helperText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.error + "18",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  errorBannerText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: Colors.error,
+    flex: 1,
+  },
   submitBtn: {
     backgroundColor: Colors.primary,
     paddingVertical: 17,
@@ -222,5 +280,10 @@ const styles = StyleSheet.create({
   },
   submitBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
   backToForgotBtn: { alignItems: "center", paddingVertical: 8 },
-  backToForgotText: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.textSecondary, textDecorationLine: "underline" },
+  backToForgotText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textDecorationLine: "underline",
+  },
 });

@@ -9,6 +9,7 @@ import { router, Stack, useSegments } from "expo-router";
 import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -120,12 +121,30 @@ export default function RootLayout() {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
+  const isWeb = Platform.OS === "web";
+
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider
+      style={isWeb ? { flex: 1, backgroundColor: "#0f0f1a" } : { flex: 1 }}
+    >
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
+            <GestureHandlerRootView
+              style={
+                isWeb
+                  ? {
+                      flex: 1,
+                      maxWidth: 430,
+                      width: "100%",
+                      alignSelf: "center",
+                      overflow: "hidden",
+                      // Subtle phone-frame shadow on desktop
+                      boxShadow: "0 0 60px rgba(0,0,0,0.6)",
+                    } as any
+                  : { flex: 1 }
+              }
+            >
               <KeyboardProvider>
                 <RootLayoutNav />
               </KeyboardProvider>

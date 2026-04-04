@@ -18,15 +18,29 @@ import { authApi } from "@/services/api";
 export default function VerifyEmailScreen() {
   const insets = useSafeAreaInsets();
   const { token: urlToken, email: paramEmail } = useLocalSearchParams();
+
+  // "checking" = token present and verifying
+  // "success"  = verified via token
+  // "failed"   = token invalid/expired
+  // "pending"  = no token, waiting for user to click email link
+  type ScreenState = "checking" | "success" | "failed" | "pending";
+
+  const [state, setState] = useState<ScreenState>(urlToken ? "checking" : "pending");
+  const [errorMsg, setErrorMsg] = useState("");
   const [resolvedEmail, setResolvedEmail] = useState<string>("");
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendSent, setResendSent] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
+  // Fade in
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: false }).start();
-    // Resolve email: from nav param or from AsyncStorage
-    const loadEmail = async () => {
+  }, []);
+
+  // Resolve user email for resend (from nav param or AsyncStorage)
+  useEffect(() => {
+    const load = async () => {
       if (typeof paramEmail === "string" && paramEmail) {
         setResolvedEmail(paramEmail);
       } else {
@@ -34,17 +48,35 @@ export default function VerifyEmailScreen() {
         if (stored) setResolvedEmail(stored);
       }
     };
-    loadEmail();
+    load();
   }, [paramEmail]);
 
-  // Countdown timer for resend cooldown
+  // If token present in URL → call backend to verify
+  useEffect(() => {
+    if (!urlToken) return;
+    const token = Array.isArray(urlToken) ? urlToken[0] : urlToken;
+    setState("checking");
+    authApi.verifyEmail(token)
+      .then(async () => {
+        // Clear pending email from storage
+        await AsyncStorage.removeItem("pending_verify_email");
+        setState("success");
+      })
+      .catch((e: any) => {
+        const msg: string = e?.message || "Verification failed.";
+        setErrorMsg(msg.includes("EXPIRED:") ? msg.replace("EXPIRED:", "") : msg);
+        setState("failed");
+      });
+  }, [urlToken]);
+
+  // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
-    const timer = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  const handleResendEmail = async () => {
+  const handleResend = async () => {
     if (!resolvedEmail) {
       Alert.alert("Error", "Email address not found. Please go back and register again.");
       return;
@@ -52,12 +84,12 @@ export default function VerifyEmailScreen() {
     setResendLoading(true);
     try {
       await authApi.resendVerification(resolvedEmail);
-      Alert.alert("Email Sent", "Verification email sent! Check your inbox.");
+      setResendSent(true);
       setResendCooldown(60);
     } catch (e: any) {
       const msg = e?.message || "Failed to resend verification email";
       if (msg.toLowerCase().includes("already verified")) {
-        Alert.alert("Already Verified", "Your email is already verified. Please login.");
+        Alert.alert("Already Verified", "Your account is already verified. Please login.");
         router.replace("/login");
       } else {
         Alert.alert("Error", msg);
@@ -67,91 +99,191 @@ export default function VerifyEmailScreen() {
     }
   };
 
+  // ── CHECKING state ──────────────────────────────────────────
+  if (state === "checking") {
+    return (
+      <Animated.View style={[styles.container, styles.centered, { opacity: fadeAnim }]}>
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginBottom: 20 }} />
+        <Text style={styles.heading}>Verifying your email…</Text>
+        <Text style={styles.subtitle}>Please wait a moment.</Text>
+      </Animated.View>
+    );
+  }
+
+  // ── SUCCESS state ──────────────────────────────────────────
+  if (state === "success") {
+    return (
+      <Animated.View style={[styles.container, styles.centered, { opacity: fadeAnim, paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}>
+        <View style={[styles.iconCircle, { borderColor: Colors.success, backgroundColor: Colors.success + "22" }]}>
+          <Feather name="check-circle" size={48} color={Colors.success} />
+        </View>
+        <Text style={styles.heading}>Email Verified!</Text>
+        <Text style={styles.subtitle}>Your account is now active. You can log in and start using SmartSpend.</Text>
+        <Pressable style={[styles.primaryBtn, { backgroundColor: Colors.success }]} onPress={() => router.replace("/login")}>
+          <Text style={styles.primaryBtnText}>Go to Login</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
+  // ── FAILED state ──────────────────────────────────────────
+  if (state === "failed") {
+    return (
+      <Animated.ScrollView
+        style={[styles.container, { opacity: fadeAnim }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}
+      >
+        <View style={[styles.iconCircle, { borderColor: Colors.error, backgroundColor: Colors.error + "22" }]}>
+          <Feather name="alert-circle" size={48} color={Colors.error} />
+        </View>
+        <Text style={styles.heading}>Link Expired or Invalid</Text>
+        <Text style={styles.subtitle}>
+          {errorMsg || "This verification link is no longer valid. Request a new one below."}
+        </Text>
+
+        {resolvedEmail ? (
+          <Pressable
+            style={[styles.primaryBtn, (resendCooldown > 0 || resendLoading) && styles.disabledBtn]}
+            onPress={handleResend}
+            disabled={resendCooldown > 0 || resendLoading}
+          >
+            {resendLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryBtnText}>
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Send New Verification Email"}
+              </Text>
+            )}
+          </Pressable>
+        ) : (
+          <Pressable style={styles.primaryBtn} onPress={() => router.replace("/register")}>
+            <Text style={styles.primaryBtnText}>Register Again</Text>
+          </Pressable>
+        )}
+
+        {resendSent && (
+          <Text style={styles.successNote}>New verification email sent! Check your inbox.</Text>
+        )}
+
+        <Pressable style={styles.secondaryBtn} onPress={() => router.replace("/login")}>
+          <Text style={styles.secondaryBtnText}>← Back to Login</Text>
+        </Pressable>
+      </Animated.ScrollView>
+    );
+  }
+
+  // ── PENDING state (just registered, waiting for email click) ──
   return (
     <Animated.ScrollView
       style={[styles.container, { opacity: fadeAnim }]}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 },
-      ]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}
     >
-      {/* Icon */}
-      <View style={styles.iconContainer}>
-        <View style={[styles.icon, { backgroundColor: "#7c3aed22", borderColor: Colors.primary }]}>
-          <Feather name="mail" size={40} color={Colors.primary} />
-        </View>
+      <View style={[styles.iconCircle, { borderColor: Colors.primary, backgroundColor: Colors.primary + "15" }]}>
+        <Feather name="mail" size={48} color={Colors.primary} />
       </View>
 
-      {/* Heading */}
       <Text style={styles.heading}>Check Your Email</Text>
-      <Text style={styles.message}>
+      <Text style={styles.subtitle}>
         We sent a verification link to{"\n"}
-        <Text style={styles.emailHighlight}>{resolvedEmail || "your email address"}</Text>
-        {"\n\n"}Click the link in your email to activate your account. The link expires in 24 hours.
+        <Text style={styles.emailText}>{resolvedEmail || "your email address"}</Text>
+        {"\n\n"}Click the link to activate your account. It expires in 24 hours.
       </Text>
 
-      {/* Resend button */}
+      {resendSent ? (
+        <View style={styles.successBanner}>
+          <Feather name="check-circle" size={18} color={Colors.success} style={{ marginRight: 8 }} />
+          <Text style={styles.successBannerText}>Email sent! Check your inbox.</Text>
+        </View>
+      ) : (
+        <Text style={styles.hintText}>Didn't receive it? Check your spam folder, then use the button below.</Text>
+      )}
+
       <Pressable
         style={[styles.primaryBtn, (resendCooldown > 0 || resendLoading) && styles.disabledBtn]}
-        onPress={handleResendEmail}
+        onPress={handleResend}
         disabled={resendCooldown > 0 || resendLoading}
       >
         {resendLoading ? (
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.primaryBtnText}>
-            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Email"}
+            {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Verification Email"}
           </Text>
         )}
       </Pressable>
 
-      {/* Back to login */}
       <Pressable style={styles.secondaryBtn} onPress={() => router.replace("/login")}>
         <Text style={styles.secondaryBtnText}>← Back to Login</Text>
       </Pressable>
 
-      {/* Register again */}
       <Pressable style={styles.tertiaryBtn} onPress={() => router.replace("/register")}>
         <Text style={styles.tertiaryBtnText}>Wrong email? Register again</Text>
       </Pressable>
-
-      <Text style={styles.hint}>
-        Didn't receive it? Check your spam folder or use the resend button above.
-      </Text>
     </Animated.ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  content: { paddingHorizontal: 28, flexGrow: 1, alignItems: "center" },
-  iconContainer: { alignItems: "center", marginBottom: 32 },
-  icon: {
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28 },
+  content: { paddingHorizontal: 28, alignItems: "center", flexGrow: 1 },
+  iconCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    marginBottom: 28,
   },
   heading: {
     fontFamily: "Inter_700Bold",
-    fontSize: 28,
+    fontSize: 26,
     color: Colors.text,
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  message: {
+  subtitle: {
     fontFamily: "Inter_400Regular",
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: "center",
     lineHeight: 26,
-    marginBottom: 36,
+    marginBottom: 28,
   },
-  emailHighlight: {
+  emailText: {
     fontFamily: "Inter_600SemiBold",
     color: Colors.primary,
+  },
+  hintText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  successNote: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    color: Colors.success,
+    textAlign: "center",
+    marginTop: 12,
+  },
+  successBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.success + "15",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    width: "100%",
+  },
+  successBannerText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    color: Colors.success,
   },
   primaryBtn: {
     width: "100%",
@@ -161,16 +293,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
     marginBottom: 12,
   },
-  primaryBtnText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    color: "#fff",
-  },
+  primaryBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
   disabledBtn: { opacity: 0.5 },
   secondaryBtn: {
     width: "100%",
@@ -182,29 +310,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  secondaryBtnText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 15,
-    color: Colors.text,
-  },
-  tertiaryBtn: {
-    width: "100%",
-    paddingVertical: 12,
-    alignItems: "center",
-    marginBottom: 24,
-  },
+  secondaryBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: Colors.text },
+  tertiaryBtn: { paddingVertical: 8, alignItems: "center" },
   tertiaryBtnText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textDecorationLine: "underline",
-  },
-  hint: {
     fontFamily: "Inter_400Regular",
     fontSize: 13,
     color: Colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 18,
-    opacity: 0.7,
+    textDecorationLine: "underline",
   },
 });
