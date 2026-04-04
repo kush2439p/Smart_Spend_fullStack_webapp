@@ -28,7 +28,7 @@ public class ReceiptService {
     private String geminiApiKey;
 
     private static final String GEMINI_API_URL =
-            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=";
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
 
     private static final String EXTRACTION_PROMPT =
             "You are a financial receipt/bill scanner. Extract transaction details and return ONLY a valid JSON object " +
@@ -86,7 +86,7 @@ public class ReceiptService {
         Map<String, Object> imageData = Map.of("mime_type", mimeType, "data", base64Image);
         Map<String, Object> imagePart = Map.of("inline_data", imageData);
         Map<String, Object> content = Map.of("parts", List.of(textPart, imagePart));
-        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 512);
+        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 1024);
         Map<String, Object> body = Map.of("contents", List.of(content), "generationConfig", generationConfig);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
@@ -105,7 +105,7 @@ public class ReceiptService {
 
         Map<String, Object> part = Map.of("text", fullPrompt);
         Map<String, Object> content = Map.of("parts", List.of(part));
-        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 512);
+        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 1024);
         Map<String, Object> body = Map.of("contents", List.of(content), "generationConfig", generationConfig);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
