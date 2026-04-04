@@ -35,7 +35,7 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already registered. Please login or use a different email.");
+            throw new RuntimeException("This email is already registered. Please login instead.");
         }
 
         String verificationToken = UUID.randomUUID().toString();
@@ -47,30 +47,30 @@ public class AuthService {
                 .currency("INR")
                 .emailVerified(false)
                 .verificationToken(verificationToken)
+                .verificationTokenExpiry(LocalDateTime.now().plusHours(24))
                 .build();
 
         userRepository.save(user);
 
-        // Send email verification link
-        emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
-
         // Seed default categories for new user
         categoryService.seedDefaultCategories(user);
 
-        // Generate JWT immediately so user can log in right away
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String token = jwtService.generateToken(userDetails);
+        // Send email verification link
+        try {
+            emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
+        } catch (Exception e) {
+            log.error("Failed to send verification email to {}: {}", user.getEmail(), e.getMessage());
+        }
 
         return AuthResponse.builder()
-                .token(token)
+                .message("Registration successful! Please check your email to verify your account.")
                 .user(AuthResponse.UserDto.builder()
                         .id(user.getId().toString())
                         .name(user.getName())
                         .email(user.getEmail())
                         .currency(user.getCurrency())
-                        .emailVerified(user.isEmailVerified())
+                        .emailVerified(false)
                         .build())
-                .message("Registration successful! Please check your email to verify your account.")
                 .build();
     }
 
@@ -79,7 +79,7 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Invalid email or password."));
 
         if (!user.isEmailVerified()) {
-            throw new RuntimeException("Please verify your email before logging in. Check your inbox for the verification link.");
+            throw new RuntimeException("Please verify your email before logging in. Check your inbox or request a new verification email.");
         }
 
         authenticationManager.authenticate(
@@ -114,22 +114,33 @@ public class AuthService {
     @Transactional
     public AuthResponse verifyEmail(String token) {
         User user = userRepository.findByVerificationToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid or expired verification token."));
+                .orElseThrow(() -> new RuntimeException("Invalid verification link. Please register again or request a new link."));
+
+        if (user.getVerificationTokenExpiry() != null
+                && user.getVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("EXPIRED:This verification link has expired. Please request a new verification email.");
+        }
 
         user.setEmailVerified(true);
         user.setVerificationToken(null);
+        user.setVerificationTokenExpiry(null);
         userRepository.save(user);
 
         // Send welcome email
-        emailService.sendWelcomeEmail(user.getEmail(), user.getName());
+        try {
+            emailService.sendWelcomeEmail(user.getEmail(), user.getName());
+        } catch (Exception e) {
+            log.error("Failed to send welcome email to {}: {}", user.getEmail(), e.getMessage());
+        }
 
         return AuthResponse.builder()
-                .message("Email verified successfully! You can now login.")
+                .message("Email verified successfully! You can now open the SmartSpend app and login.")
                 .user(AuthResponse.UserDto.builder()
                         .id(user.getId().toString())
                         .name(user.getName())
                         .email(user.getEmail())
                         .currency(user.getCurrency())
+                        .emailVerified(true)
                         .build())
                 .build();
     }
@@ -141,20 +152,24 @@ public class AuthService {
 
         String resetToken = UUID.randomUUID().toString();
         user.setResetToken(resetToken);
-        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1)); // Token expires in 1 hour
+        user.setResetTokenExpiry(LocalDateTime.now().plusHours(1));
         userRepository.save(user);
 
-        emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), resetToken);
+        try {
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), resetToken);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}: {}", user.getEmail(), e.getMessage());
+        }
         log.info("Password reset token generated for user: {}", email);
     }
 
     @Transactional
     public void resetPassword(String token, String newPassword) {
         User user = userRepository.findByResetToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid or expired reset link"));
+                .orElseThrow(() -> new RuntimeException("Invalid reset token. Please request a new one."));
 
-        if (user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Reset link has expired. Please request a new one.");
+        if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Reset token has expired. Please request a new password reset.");
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
@@ -162,31 +177,34 @@ public class AuthService {
         user.setResetTokenExpiry(null);
         userRepository.save(user);
 
+        try {
+            emailService.sendPasswordResetConfirmationEmail(user.getEmail(), user.getName());
+        } catch (Exception e) {
+            log.error("Failed to send password reset confirmation email to {}: {}", user.getEmail(), e.getMessage());
+        }
         log.info("Password reset completed for user: {}", user.getEmail());
     }
 
     @Transactional
     public void resendVerificationEmail(String email) {
         Optional<User> userOptional = userRepository.findByEmail(email);
-        
+
         if (userOptional.isEmpty()) {
-            throw new RuntimeException("No account found with this email");
+            throw new RuntimeException("No account found with this email. Please register first.");
         }
-        
+
         User user = userOptional.get();
-        
+
         if (user.isEmailVerified()) {
-            throw new RuntimeException("Email is already verified");
+            throw new RuntimeException("This email is already verified. Please login.");
         }
-        
-        // Generate new verification token
+
         String verificationToken = UUID.randomUUID().toString();
         user.setVerificationToken(verificationToken);
+        user.setVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
         userRepository.save(user);
-        
-        // Send verification email
+
         emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
-        
-        log.info("Verification email resent for user: {}", user.getEmail());
+        log.info("Verification email resent for user: {}", email);
     }
 }

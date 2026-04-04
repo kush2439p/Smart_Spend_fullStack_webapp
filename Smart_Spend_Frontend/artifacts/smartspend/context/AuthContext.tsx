@@ -10,7 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   isEmailVerified: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<{ email: string }>;
   verifyEmail: (token: string) => Promise<{ message: string }>;
   logout: () => Promise<void>;
   updateUser: (user: Partial<User>) => void;
@@ -38,7 +38,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(parsedUser);
         setIsEmailVerified(parsedUser.emailVerified || false);
       } else {
-        // No stored auth - clear everything
         setToken(null);
         setUser(null);
         setIsEmailVerified(false);
@@ -54,69 +53,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    try {
-      const res = await authApi.login(email, password);
-      await AsyncStorage.setItem("auth_token", res.token);
-      await AsyncStorage.setItem("auth_user", JSON.stringify(res.user));
-      setToken(res.token);
-      setUser(res.user);
-      setIsEmailVerified(res.user.emailVerified || false);
-      // Navigation handled by AuthGuard in _layout.tsx
-    } catch (e: any) {
-      // Handle JSON parse errors and other network issues
-      let errorMessage = "Invalid credentials";
-      if (e.message && e.message.includes("JSON")) {
-        errorMessage = "Network error. Please check your connection and try again.";
-      } else if (e.message) {
-        errorMessage = e.message;
-      }
-      Alert.alert("Login Failed", errorMessage);
-    }
+    const res = await authApi.login(email, password);
+    await AsyncStorage.setItem("auth_token", res.token);
+    await AsyncStorage.setItem("auth_user", JSON.stringify(res.user));
+    setToken(res.token);
+    setUser(res.user);
+    setIsEmailVerified(res.user.emailVerified || false);
+    // Navigation handled by AuthGuard in _layout.tsx
   };
 
   const register = async (name: string, email: string, password: string) => {
-    try {
-      const res = await authApi.register(name, email, password);
-      // Don't save token/user immediately - redirect to email verification page
-      router.replace("/verify-email");
-      Alert.alert(
-        "Registration Successful!", 
-        "Please check your email and click the verification link to activate your account."
-      );
-    } catch (e: any) {
-      // Handle JSON parse errors and other network issues
-      let errorMessage = "Something went wrong";
-      if (e.message && e.message.includes("JSON")) {
-        errorMessage = "Network error. Please check your connection and try again.";
-      } else if (e.message) {
-        errorMessage = e.message;
-      }
-      Alert.alert("Registration Failed", errorMessage);
-    }
+    const res = await authApi.register(name, email, password);
+    // Store pending email so verify-email screen can use it for resend
+    await AsyncStorage.setItem("pending_verify_email", email);
+    // Do NOT log user in — they must verify email first
+    router.replace({ pathname: "/verify-email", params: { email } });
+    return { email };
   };
 
   const verifyEmail = async (token: string) => {
-    try {
-      const res = await authApi.verifyEmail(token);
-      const storedUser = await AsyncStorage.getItem("auth_user");
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        const updated = { ...parsedUser, emailVerified: true };
-        setUser(updated);
-        AsyncStorage.setItem("auth_user", JSON.stringify(updated));
-        setIsEmailVerified(true);
-      }
-      return res;
-    } catch (e: any) {
-      throw new Error(e.message || "Verification failed");
+    const res = await authApi.verifyEmail(token);
+    const storedUser = await AsyncStorage.getItem("auth_user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      const updated = { ...parsedUser, emailVerified: true };
+      setUser(updated);
+      AsyncStorage.setItem("auth_user", JSON.stringify(updated));
+      setIsEmailVerified(true);
     }
+    return res;
   };
 
   const logout = async () => {
     try {
       await authApi.logout();
     } catch {}
-    await AsyncStorage.multiRemove(["auth_token", "auth_user"]);
+    await AsyncStorage.multiRemove(["auth_token", "auth_user", "pending_verify_email"]);
     setToken(null);
     setUser(null);
     setIsEmailVerified(false);

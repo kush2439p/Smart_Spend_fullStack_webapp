@@ -8,10 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  ScrollView,
   Animated,
   KeyboardAvoidingView,
   Keyboard,
+  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,127 +38,142 @@ export default function RegisterScreen() {
     ]).start();
   }, []);
 
- const handleRegister = async () => {
-  Keyboard.dismiss();
-  if (!name || !email || !password || !confirmPass) {
-    Alert.alert("Error", "Please fill in all fields");
-    return;
-  }
-  if (password !== confirmPass) {
-    Alert.alert("Error", "Passwords do not match");
-    return;
-  }
-  if (password.length < 6) {
-    Alert.alert("Error", "Password must be at least 6 characters");
-    return;
-  }
-  setLoading(true);
-  try {
-    await register(name, email, password);
-  } catch (e: any) {
-    Alert.alert("Registration Failed", e.message || "Something went wrong");
-  } finally {
-    setLoading(false);
-  }
-};
+  const handleRegister = async () => {
+    Keyboard.dismiss();
+    if (!name.trim() || !email.trim() || !password || !confirmPass) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Error", "Please enter a valid email address");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be at least 6 characters");
+      return;
+    }
+    if (password !== confirmPass) {
+      Alert.alert("Error", "Passwords do not match");
+      return;
+    }
+    setLoading(true);
+    try {
+      await register(name.trim(), email.trim().toLowerCase(), password);
+    } catch (e: any) {
+      const msg = e?.message || "Something went wrong. Please try again.";
+      Alert.alert("Registration Failed", msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <Animated.ScrollView
         style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
         contentContainerStyle={[
           styles.content,
-          {
-            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20),
-            paddingBottom: insets.bottom + 40,
-          },
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
-      <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/onboarding")}>
-        <Feather name="arrow-left" size={24} color={Colors.text} />
-      </Pressable>
+        <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/onboarding")}>
+          <Feather name="arrow-left" size={24} color={Colors.text} />
+        </Pressable>
 
-      <Text style={styles.heading}>Create Account</Text>
-      <Text style={styles.subtitle}>Start your financial journey today</Text>
+        <Text style={styles.heading}>Create Account</Text>
+        <Text style={styles.subtitle}>Start your financial journey today</Text>
 
-      <View style={styles.form}>
-        {[
-          { label: "Full Name", icon: "user", value: name, setter: setName, placeholder: "John Doe", type: "default" as const },
-          { label: "Email Address", icon: "mail", value: email, setter: setEmail, placeholder: "john@example.com", type: "email-address" as const },
-        ].map((field) => (
-          <View style={styles.fieldGroup} key={field.label}>
-            <Text style={styles.label}>{field.label}</Text>
+        <View style={styles.form}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Full Name</Text>
             <View style={styles.inputWrapper}>
-              <Feather name={field.icon as any} size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Feather name="user" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder={field.placeholder}
+                placeholder="John Doe"
                 placeholderTextColor={Colors.textSecondary}
-                value={field.value}
-                onChangeText={field.setter}
-                keyboardType={field.type}
-                autoCapitalize={field.type === "email-address" ? "none" : "words"}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
                 autoCorrect={false}
               />
             </View>
           </View>
-        ))}
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.inputWrapper}>
-            <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="Min. 6 characters"
-              placeholderTextColor={Colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPass}
-            />
-            <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-              <Feather name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
-            </Pressable>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="john@example.com"
+                placeholderTextColor={Colors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
           </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Min. 6 characters"
+                placeholderTextColor={Colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPass}
+              />
+              <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                <Feather name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Confirm Password</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Repeat your password"
+                placeholderTextColor={Colors.textSecondary}
+                value={confirmPass}
+                onChangeText={setConfirmPass}
+                secureTextEntry={!showPass}
+              />
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [styles.registerBtn, { opacity: pressed || loading ? 0.85 : 1 }]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.registerBtnText}>Create Account</Text>
+            )}
+          </Pressable>
         </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Confirm Password</Text>
-          <View style={styles.inputWrapper}>
-            <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="Repeat your password"
-              placeholderTextColor={Colors.textSecondary}
-              value={confirmPass}
-              onChangeText={setConfirmPass}
-              secureTextEntry={!showPass}
-            />
-          </View>
+        <View style={styles.loginRow}>
+          <Text style={styles.loginPrompt}>Already have an account? </Text>
+          <Pressable onPress={() => router.replace("/login")}>
+            <Text style={styles.loginLink}>Log In</Text>
+          </Pressable>
         </View>
-
-        <Pressable
-          style={({ pressed }) => [styles.registerBtn, { opacity: pressed || loading ? 0.85 : 1 }]}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.registerBtnText}>Create Account</Text>
-          )}
-        </Pressable>
-      </View>
-
-      <View style={styles.loginRow}>
-        <Text style={styles.loginPrompt}>Already have an account? </Text>
-        <Pressable onPress={() => router.replace("/login")}>
-          <Text style={styles.loginLink}>Log In</Text>
-        </Pressable>
-      </View>
       </Animated.ScrollView>
     </KeyboardAvoidingView>
   );

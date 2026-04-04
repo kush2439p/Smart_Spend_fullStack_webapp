@@ -7,7 +7,6 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
-  ScrollView,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -22,7 +21,7 @@ import { authApi } from "@/services/api";
 export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
   const { token: urlToken } = useLocalSearchParams();
-  const [token, setToken] = useState(typeof urlToken === 'string' ? urlToken : "");
+  const [token, setToken] = useState(typeof urlToken === "string" ? urlToken : "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,131 +39,72 @@ export default function ResetPasswordScreen() {
 
   const handleResetPassword = async () => {
     Keyboard.dismiss();
-    
     if (!token.trim()) {
       Alert.alert("Error", "Please enter your reset token");
       return;
     }
-
-    if (!password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all fields");
+    if (!password) {
+      Alert.alert("Error", "Please enter a new password");
       return;
     }
-
     if (password.length < 6) {
       Alert.alert("Error", "Password must be at least 6 characters");
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert("Error", "Passwords do not match");
       return;
     }
-
     setLoading(true);
     try {
-      const res = await authApi.resetPassword(token as string, password);
+      await authApi.resetPassword(token.trim(), password);
       Alert.alert(
-        "Success",
-        "Password reset successfully! Please login with your new password.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/login")
-          }
-        ]
+        "Password Reset!",
+        "Your password has been reset successfully. Please login with your new password.",
+        [{ text: "Go to Login", onPress: () => router.replace("/login") }]
       );
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to reset password. The link may have expired.");
+      Alert.alert("Error", e?.message || "Failed to reset password. The token may have expired.");
     } finally {
       setLoading(false);
     }
   };
 
-  if (!token) {
-    return (
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <Animated.ScrollView
-          style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-          contentContainerStyle={[
-            styles.content,
-            {
-              paddingTop: insets.top + 20,
-              paddingBottom: insets.bottom + 40,
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Pressable style={styles.backBtn} onPress={() => router.replace("/login")}>
-            <Feather name="arrow-left" size={24} color={Colors.text} />
-          </Pressable>
-
-          <View style={styles.iconContainer}>
-            <View style={styles.icon}>
-              <Feather name="alert-circle" size={48} color={Colors.error} />
-            </View>
-          </View>
-
-          <Text style={styles.heading}>Invalid Reset Link</Text>
-          <Text style={styles.subtitle}>
-            This password reset link is invalid or has expired.
-          </Text>
-
-          <View style={styles.form}>
-            <Pressable
-              style={({ pressed }) => [styles.submitBtn, { opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => router.replace("/forgot-password")}
-            >
-              <Text style={styles.submitBtnText}>Request New Reset Link</Text>
-            </Pressable>
-          </View>
-        </Animated.ScrollView>
-      </KeyboardAvoidingView>
-    );
-  }
-
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <Animated.ScrollView
         style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
         contentContainerStyle={[
           styles.content,
-          {
-            paddingTop: insets.top + 20,
-            paddingBottom: insets.bottom + 40,
-          },
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable style={styles.backBtn} onPress={() => router.replace("/login")}>
+        <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/login")}>
           <Feather name="arrow-left" size={24} color={Colors.text} />
         </Pressable>
 
         <View style={styles.iconContainer}>
           <View style={styles.icon}>
-            <Feather name="unlock" size={48} color={Colors.primary} />
+            <Feather name="unlock" size={40} color={Colors.primary} />
           </View>
         </View>
 
         <Text style={styles.heading}>Reset Password</Text>
-        <Text style={styles.subtitle}>
-          Enter your reset token and new password below.
-        </Text>
+        <Text style={styles.subtitle}>Enter the reset token from your email and choose a new password.</Text>
 
         <View style={styles.form}>
+          {/* Reset Token */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Reset Token</Text>
             <View style={styles.inputWrapper}>
               <Feather name="key" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder=""
+                placeholder="Paste your reset token here"
                 placeholderTextColor={Colors.textSecondary}
                 value={token}
                 onChangeText={setToken}
@@ -172,61 +112,43 @@ export default function ResetPasswordScreen() {
                 autoCorrect={false}
               />
             </View>
+            <Text style={styles.helperText}>Copy the token from your email and paste it above</Text>
           </View>
 
-          <View style={styles.helperText}>
-            <Text style={styles.helperText}>
-              Check your email for reset token.{"\n"}
-              Copy the token from the email and paste it above.
-            </Text>
-          </View>
-
+          {/* New Password */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>New Password</Text>
             <View style={styles.inputWrapper}>
               <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder=""
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Min. 6 characters"
                 placeholderTextColor={Colors.textSecondary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
               />
-              <Pressable
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Feather 
-                  name={showPassword ? "eye-off" : "eye"} 
-                  size={18} 
-                  color={Colors.textSecondary} 
-                />
+              <Pressable style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
+                <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
           </View>
 
+          {/* Confirm Password */}
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrapper}>
               <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
-                style={styles.input}
-                placeholder="Confirm new password"
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Repeat new password"
                 placeholderTextColor={Colors.textSecondary}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
               />
-              <Pressable
-                style={styles.eyeIcon}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                <Feather 
-                  name={showConfirmPassword ? "eye-off" : "eye"} 
-                  size={18} 
-                  color={Colors.textSecondary} 
-                />
+              <Pressable style={styles.eyeIcon} onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                <Feather name={showConfirmPassword ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
           </View>
@@ -242,6 +164,10 @@ export default function ResetPasswordScreen() {
               <Text style={styles.submitBtnText}>Reset Password</Text>
             )}
           </Pressable>
+
+          <Pressable style={styles.backToForgotBtn} onPress={() => router.replace("/forgot-password")}>
+            <Text style={styles.backToForgotText}>Need a new reset link?</Text>
+          </Pressable>
         </View>
       </Animated.ScrollView>
     </KeyboardAvoidingView>
@@ -251,40 +177,23 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingHorizontal: 24, flexGrow: 1 },
-  backBtn: { marginBottom: 32 },
-  iconContainer: { alignItems: "center", marginBottom: 32 },
+  backBtn: { marginBottom: 28 },
+  iconContainer: { alignItems: "center", marginBottom: 28 },
   icon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     backgroundColor: Colors.card,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: Colors.primary,
   },
-  heading: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-    color: Colors.text,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 36,
-  },
+  heading: { fontFamily: "Inter_700Bold", fontSize: 28, color: Colors.text, textAlign: "center", marginBottom: 10 },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 32 },
   form: { gap: 20 },
-  fieldGroup: { gap: 8 },
-  label: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: Colors.text,
-  },
+  fieldGroup: { gap: 6 },
+  label: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.text },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -296,16 +205,9 @@ const styles = StyleSheet.create({
     height: 52,
   },
   inputIcon: { marginRight: 10 },
-  input: {
-    flex: 1,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: Colors.text,
-  },
-  eyeIcon: {
-    padding: 4,
-    marginLeft: 8,
-  },
+  input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.text },
+  eyeIcon: { padding: 4, marginLeft: 8 },
+  helperText: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 4 },
   submitBtn: {
     backgroundColor: Colors.primary,
     paddingVertical: 17,
@@ -316,19 +218,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 6,
-    marginTop: 8,
+    marginTop: 4,
   },
-  submitBtnText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    color: "#fff",
-  },
-  helperText: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 16,
-  },
+  submitBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+  backToForgotBtn: { alignItems: "center", paddingVertical: 8 },
+  backToForgotText: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.textSecondary, textDecorationLine: "underline" },
 });

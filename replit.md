@@ -48,9 +48,35 @@ SmartSpend is a full-stack personal finance tracker with:
 - `BASE_URL` uses `EXPO_PUBLIC_DOMAIN` env var (injected by dev script) to point to backend
 - Falls back to `http://localhost:8080/api` if not set
 
+## Switching to MySQL (when ready)
+
+Set these Replit env vars:
+- `MYSQL_URL=jdbc:mysql://host:3306/dbname`
+- `MYSQL_USER=your_user`
+- `MYSQL_PASSWORD=your_password`
+- `DB_DRIVER=com.mysql.cj.jdbc.Driver`
+
+Both MySQL and PostgreSQL drivers are in pom.xml.
+
+## Authentication Flow
+
+1. **Register** → `POST /api/auth/register` → sends verification email → frontend routes to `/verify-email`
+2. **Verify Email** → user clicks link in email → `GET /verify-email?token=XXX` → styled HTML page (browser)
+   - App can also verify via `GET /api/auth/verify?token=XXX` (JSON)
+   - Tokens expire after 24 hours
+3. **Login** → `POST /api/auth/login` → rejects unverified emails with clear error + resend option
+4. **Forgot Password** → `POST /api/auth/forgot-password` → sends reset email with token
+5. **Reset Password** → `POST /api/auth/reset-password` → resets, sends confirmation email
+6. **Resend Verification** → `POST /api/auth/resend-verification` → issues new 24hr token
+
+Email sender: kushv619@gmail.com (Gmail SMTP)
+
 ## Key Notes
 
 - Original project used MySQL; switched to PostgreSQL for Replit compatibility
+- Database URL built from `PGHOST`, `PGPORT`, `PGDATABASE` env vars (avoids non-JDBC `DATABASE_URL` format)
 - Original backend port was 8081; changed to 8080 (required by Replit)
-- Hibernate auto-creates all tables on first run (`ddl-auto=update`)
-- The Expo app runs in web mode on Replit (not native mobile)
+- Hibernate auto-creates/updates all tables on startup (`ddl-auto=update`)
+- The Expo app runs in web mode on Replit; QR code in Expo console lets users open on real device via Expo Go
+- `pending_verify_email` stored in AsyncStorage after registration — used by verify-email screen for resend
+- `verificationTokenExpiry` field on User — 24h expiry enforced on backend

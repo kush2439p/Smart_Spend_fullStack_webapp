@@ -28,6 +28,7 @@ public class EmailService {
 
     public void sendVerificationEmail(String toEmail, String name, String token) {
         String subject = "Verify your SmartSpend account";
+        // Uses the /verify-email browser endpoint (returns HTML page, not JSON)
         String verifyUrl = publicUrl + "/verify-email?token=" + token;
 
         String html = """
@@ -201,7 +202,8 @@ public class EmailService {
 
     public void sendPasswordResetEmail(String toEmail, String name, String token) {
         String subject = "Reset your SmartSpend password";
-        String resetUrl = frontendUrl + "/--/reset-password?token=" + token;
+        // Deep link into the app's reset-password screen
+        String resetUrl = frontendUrl + "/reset-password?token=" + token;
 
         String html = """
             <!DOCTYPE html>

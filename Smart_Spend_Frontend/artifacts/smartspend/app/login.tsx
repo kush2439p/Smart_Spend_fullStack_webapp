@@ -7,8 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  TouchableWithoutFeedback,
   Keyboard,
   ActivityIndicator,
   Alert,
@@ -19,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
+import { authApi } from "@/services/api";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -37,32 +36,43 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
+  const handleResendVerification = async (emailAddr: string) => {
+    try {
+      await authApi.resendVerification(emailAddr);
+      Alert.alert("Email Sent", "Verification email sent! Check your inbox.");
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Failed to resend verification email.");
+    }
+  };
+
   const handleLogin = async () => {
     Keyboard.dismiss();
     if (!email || !password) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
-    console.log("Login attempt:", { email, hasPassword: !!password });
     setLoading(true);
     try {
-      await login(email, password);
-      console.log("Login successful");
+      await login(email.trim().toLowerCase(), password);
     } catch (e: any) {
-      console.error("Login error:", e);
-      let errorMessage = "Invalid credentials";
-      if (e.message) {
-        errorMessage = e.message;
-      }
-      // Check if error is about email verification
-      if (errorMessage.includes("verify") || errorMessage.includes("email")) {
+      const msg: string = e?.message || "Invalid credentials";
+      const isNotVerified = msg.toLowerCase().includes("verify");
+
+      if (isNotVerified) {
         Alert.alert(
           "Email Not Verified",
-          "Please check your email and click the verification link before logging in. If you need a new verification email, go to Forgot Password.",
-          [{ text: "OK", onPress: () => router.replace("/login") }]
+          "Please verify your email before logging in.",
+          [
+            { text: "Resend Email", onPress: () => handleResendVerification(email.trim().toLowerCase()) },
+            {
+              text: "Check Email Screen",
+              onPress: () => router.push({ pathname: "/verify-email", params: { email: email.trim().toLowerCase() } }),
+            },
+            { text: "Cancel", style: "cancel" },
+          ]
         );
       } else {
-        Alert.alert("Login Failed", errorMessage);
+        Alert.alert("Login Failed", msg);
       }
     } finally {
       setLoading(false);
@@ -70,81 +80,78 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1 }}
     >
       <Animated.ScrollView
         style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
         contentContainerStyle={[
           styles.content,
-          {
-            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 20),
-            paddingBottom: insets.bottom + 40,
-          },
+          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 40 },
         ]}
         keyboardShouldPersistTaps="handled"
       >
-      <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/onboarding")}>
-        <Feather name="arrow-left" size={24} color={Colors.text} />
-      </Pressable>
+        <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/onboarding")}>
+          <Feather name="arrow-left" size={24} color={Colors.text} />
+        </Pressable>
 
-      <Text style={styles.heading}>Welcome Back! 👋</Text>
-      <Text style={styles.subtitle}>Sign in to continue to SmartSpend</Text>
+        <Text style={styles.heading}>Welcome Back! 👋</Text>
+        <Text style={styles.subtitle}>Sign in to continue to SmartSpend</Text>
 
-      <View style={styles.form}>
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email Address</Text>
-          <View style={styles.inputWrapper}>
-            <Feather name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="john@example.com"
-              placeholderTextColor={Colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+        <View style={styles.form}>
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="john@example.com"
+                placeholderTextColor={Colors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
           </View>
-        </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.inputWrapper}>
-            <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="••••••••"
-              placeholderTextColor={Colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPass}
-            />
-            <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-              <Feather name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="••••••••"
+                placeholderTextColor={Colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPass}
+              />
+              <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
+                <Feather name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+            <Pressable style={styles.forgotBtn} onPress={() => router.push("/forgot-password")}>
+              <Text style={styles.forgotText}>Forgot Password?</Text>
             </Pressable>
           </View>
-          <Pressable style={styles.forgotBtn} onPress={() => router.push("/forgot-password")}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
+
+          <Pressable
+            style={({ pressed }) => [styles.loginBtn, { opacity: pressed || loading ? 0.85 : 1 }]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginBtnText}>Log In</Text>
+            )}
           </Pressable>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.loginBtn, { opacity: pressed || loading ? 0.85 : 1 }]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.loginBtnText}>Log In</Text>
-          )}
-        </Pressable>
-      </View>
-
-      <View style={styles.registerRow}>
+        <View style={styles.registerRow}>
           <Text style={styles.registerPrompt}>Don't have an account? </Text>
           <Pressable onPress={() => router.replace("/register")}>
             <Text style={styles.registerLink}>Sign Up</Text>
@@ -159,25 +166,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingHorizontal: 24, flexGrow: 1 },
   backBtn: { marginBottom: 32 },
-  heading: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 28,
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: Colors.textSecondary,
-    marginBottom: 36,
-  },
+  heading: { fontFamily: "Inter_700Bold", fontSize: 28, color: Colors.text, marginBottom: 8 },
+  subtitle: { fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.textSecondary, marginBottom: 36 },
   form: { gap: 20 },
   fieldGroup: { gap: 8 },
-  label: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 14,
-    color: Colors.text,
-  },
+  label: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.text },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -189,19 +182,10 @@ const styles = StyleSheet.create({
     height: 52,
   },
   inputIcon: { marginRight: 10 },
-  input: {
-    flex: 1,
-    fontFamily: "Inter_400Regular",
-    fontSize: 15,
-    color: Colors.text,
-  },
+  input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.text },
   eyeBtn: { padding: 4 },
   forgotBtn: { alignSelf: "flex-end", marginTop: 4 },
-  forgotText: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 13,
-    color: Colors.primary,
-  },
+  forgotText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.primary },
   loginBtn: {
     backgroundColor: Colors.primary,
     paddingVertical: 17,
@@ -214,24 +198,8 @@ const styles = StyleSheet.create({
     elevation: 6,
     marginTop: 4,
   },
-  loginBtnText: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 16,
-    color: "#fff",
-  },
-  registerRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 36,
-  },
-  registerPrompt: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  registerLink: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
-    color: Colors.primary,
-  },
+  loginBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+  registerRow: { flexDirection: "row", justifyContent: "center", marginTop: 36 },
+  registerPrompt: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
+  registerLink: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.primary },
 });
