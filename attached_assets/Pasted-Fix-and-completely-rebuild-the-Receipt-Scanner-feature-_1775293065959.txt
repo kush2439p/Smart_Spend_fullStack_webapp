@@ -1,0 +1,192 @@
+Fix and completely rebuild the Receipt Scanner feature. Currently the scanner 
+screen exists but does nothing — it just shows a camera view with no 
+functionality. Rebuild it properly with two modes: Camera Scan and Upload.
+
+═══════════════════════════════════════════════════════════════════════
+FEATURE OVERVIEW
+═══════════════════════════════════════════════════════════════════════
+
+User can scan or upload a receipt/bill and the app will:
+1. Extract the data from it (amount, date, merchant/store name, items)
+2. Automatically suggest a category (Food, Transport, Shopping, etc.)
+3. Let user review and edit the extracted data
+4. Save it as a transaction (expense or income) to their account
+
+═══════════════════════════════════════════════════════════════════════
+MODE 1 — CAMERA SCAN
+═══════════════════════════════════════════════════════════════════════
+
+- Use expo-camera to show live camera feed
+- Show a receipt frame/overlay so user knows where to position receipt
+- A scanning line animation moving up and down inside the frame
+  to show it is "scanning" (purely visual, makes it feel active)
+- Capture button at the bottom (large white circle)
+- Flash toggle button (top right)
+- Gallery/Upload button (bottom left) to switch to upload mode
+- After capturing photo:
+  → Show loading screen: "Analyzing receipt..."
+  → Send image to backend for processing
+  → Show extracted results screen
+
+═══════════════════════════════════════════════════════════════════════
+MODE 2 — UPLOAD / IMPORT
+═══════════════════════════════════════════════════════════════════════
+
+- Use expo-image-picker to let user pick from gallery
+- Also support PDF upload using expo-document-picker
+  (for bills that come as PDF like electricity, phone bills)
+- Accepted formats: JPG, PNG, PDF
+- After picking file:
+  → Show loading screen: "Analyzing receipt..."
+  → Send to backend for processing
+  → Show extracted results screen
+
+The upload option should be accessible from:
+  1. The scanner screen bottom left button
+  2. A dedicated "Upload Receipt" button somewhere on the 
+     add-transaction screen or home screen
+
+═══════════════════════════════════════════════════════════════════════
+BACKEND — RECEIPT PROCESSING API
+═══════════════════════════════════════════════════════════════════════
+
+Endpoint: POST /api/receipts/scan
+  - Accepts multipart/form-data with file (image or PDF)
+  - Use Google Vision API (already configured in app) to extract text 
+    from the image using OCR
+  - For PDF: convert first page to image then run OCR on it
+  - After getting raw text from OCR, send it to Gemini AI 
+    (already configured in app) with this prompt:
+
+    "Extract the following information from this receipt/bill text 
+     and return ONLY a valid JSON object with no extra text:
+     {
+       'merchant': 'store or company name',
+       'amount': total amount as a number,
+       'date': 'date in YYYY-MM-DD format or null if not found',
+       'category': 'one of: Food, Transport, Shopping, Entertainment, 
+                   Healthcare, Utilities, Education, Travel, 
+                   Groceries, Dining, Other',
+       'type': 'expense or income',
+       'items': ['list of items if visible, max 5 items'],
+       'currency': 'currency code like INR or USD',
+       'notes': 'any other relevant info'
+     }
+     Receipt text: [OCR_TEXT_HERE]"
+
+  - Parse the JSON response from Gemini
+  - Return the parsed data to frontend
+
+Response format:
+  {
+    "merchant": "Swiggy",
+    "amount": 450.00,
+    "date": "2026-04-04",
+    "category": "Dining",
+    "type": "expense",
+    "items": ["Burger", "Fries", "Coke"],
+    "currency": "INR",
+    "notes": "Order #12345"
+  }
+
+Error handling:
+  - If OCR fails → return error: "Could not read the receipt. 
+    Please try again with a clearer image."
+  - If Gemini parsing fails → return error: "Could not extract data. 
+    Please enter details manually."
+  - Always return 200 with either data or error message
+
+═══════════════════════════════════════════════════════════════════════
+FRONTEND — RESULTS / REVIEW SCREEN
+═══════════════════════════════════════════════════════════════════════
+
+After backend returns extracted data, show a Review screen with:
+
+  - Title: "Review Receipt"
+  - Show the scanned/uploaded image as a small thumbnail at the top
+  - Editable fields pre-filled with extracted data:
+    * Merchant/Description (text input)
+    * Amount (number input)
+    * Date (date picker, pre-filled)
+    * Category (dropdown/picker with all categories)
+    * Type (toggle: Expense / Income)
+    * Notes (text input, optional)
+  - Items list if extracted (read only, just for reference)
+  - Two buttons at bottom:
+    * "Save Transaction" → saves to account and goes back to dashboard
+    * "Scan Again" → goes back to scanner
+
+If any field could not be extracted it should be empty/editable 
+so user can fill it in manually.
+
+Show a small "AI extracted" badge next to fields that were 
+auto-filled so user knows which ones to double check.
+
+═══════════════════════════════════════════════════════════════════════
+SAVING THE TRANSACTION
+═══════════════════════════════════════════════════════════════════════
+
+When user taps "Save Transaction":
+  - Validate amount is not empty and is a valid number
+  - Call existing transaction creation API with the data
+  - If category from receipt doesn't exist in user's categories,
+    automatically create it
+  - Show success toast: "Transaction saved!"
+  - Navigate to dashboard or transactions list
+
+═══════════════════════════════════════════════════════════════════════
+UI REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Scanner screen:
+  - Dark background (already looks good from screenshot)
+  - Keep the existing corner brackets frame overlay
+  - ADD the animated scanning line (purple/blue color moving up and down)
+  - Bottom bar with 3 buttons: [Gallery] [Capture] [Flash]
+  - Make the capture button actually work
+  - Show permission request if camera not permitted
+
+Loading screen (shown while processing):
+  - Show the receipt thumbnail
+  - Animated spinner or progress bar
+  - Text: "Analyzing receipt..." then "Extracting data..." 
+    then "Almost done..."
+  - Cycle through these messages every 1.5 seconds
+
+General:
+  - Match existing app dark theme and purple/blue color scheme
+  - Handle errors gracefully with clear error messages
+  - All screens must work with keyboard avoiding view
+
+═══════════════════════════════════════════════════════════════════════
+PACKAGES NEEDED
+═══════════════════════════════════════════════════════════════════════
+
+Install if not already installed:
+  expo install expo-camera
+  expo install expo-image-picker  
+  expo install expo-document-picker
+  expo install expo-file-system
+
+For PDF processing on backend add to pom.xml:
+  <dependency>
+    <groupId>org.apache.pdfbox</groupId>
+    <artifactId>pdfbox</artifactId>
+    <version>3.0.1</version>
+  </dependency>
+
+═══════════════════════════════════════════════════════════════════════
+SUMMARY OF FILES TO CREATE/MODIFY
+═══════════════════════════════════════════════════════════════════════
+
+Frontend:
+  - app/scan-receipt.tsx (rebuild from scratch)
+  - app/review-receipt.tsx (new screen)
+  - services/api.ts (add receipt scan API call)
+  - app/_layout.tsx (add new screen routes)
+
+Backend:
+  - ReceiptController.java (new)
+  - ReceiptService.java (new, handles OCR + Gemini parsing)
+  - Update SecurityConfig to allow /api/receipts/** with JWT
+    (this endpoint requires auth since it saves to user account)

@@ -159,25 +159,38 @@ export const aiApi = {
 // Receipt Scanner  →  POST /receipts/scan (multipart)
 // ============================================================
 export const receiptApi = {
-  scan: async (imageUri: string): Promise<ReceiptScanResult> => {
+  scan: async (fileUri: string, mimeType: string = "image/jpeg"): Promise<ReceiptScanResult> => {
     const token = await AsyncStorage.getItem("auth_token");
     const formData = new FormData();
-    // Backend expects multipart field name `file`
-    formData.append("file", {
-      uri: imageUri,
-      type: "image/jpeg",
-      name: "receipt.jpg",
-    } as unknown as Blob);
+    const isPdf = mimeType === "application/pdf";
+    const fileName = isPdf ? "receipt.pdf" : "receipt.jpg";
+
+    if (typeof window !== "undefined" && fileUri.startsWith("blob:")) {
+      // Web: fetch the blob and append it directly
+      const blobRes = await fetch(fileUri);
+      const blob = await blobRes.blob();
+      formData.append("file", blob, fileName);
+    } else {
+      // Native (React Native): use the URI object form
+      formData.append("file", {
+        uri: fileUri,
+        type: mimeType,
+        name: fileName,
+      } as unknown as Blob);
+    }
 
     const response = await fetch(`${BASE_URL}/receipts/scan`, {
       method: "POST",
       headers: {
-        "Content-Type": "multipart/form-data",
+        // Do NOT set Content-Type — browser must set it with multipart boundary
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: formData,
     });
-    if (!response.ok) throw new Error("Receipt scan failed");
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || "Receipt scan failed");
+    }
     return response.json();
   },
 };
@@ -312,8 +325,14 @@ export interface AiChatResponse {
 }
 
 export interface ReceiptScanResult {
-  amount: number;
   merchant: string;
+  amount: number;
   date: string;
+  category: string;
   suggestedCategory: string;
+  type?: "expense" | "income";
+  items?: string[];
+  currency?: string;
+  notes?: string;
+  error?: string;
 }
