@@ -50,7 +50,8 @@ public class TransactionService {
 
         Page<Transaction> transactions;
 
-        Category categoryResolved = resolveCategory(categoryId, category, user);
+        // For filtering (listing), return null when no category specified — don't auto-create
+        Category categoryResolved = resolveCategoryFilter(categoryId, category, user);
 
         if (type != null && categoryResolved != null && startDate != null && endDate != null) {
             transactions = transactionRepository.findByUserAndTypeAndCategoryAndDateBetween(
@@ -183,6 +184,18 @@ public class TransactionService {
                 .build();
     }
 
+    /** For LISTING/FILTERING: returns null when no category specified (no filter). */
+    private Category resolveCategoryFilter(Long categoryId, String categoryName, User user) {
+        if (categoryId != null) {
+            return categoryService.findByIdAndUser(categoryId, user);
+        }
+        if (categoryName == null || categoryName.isBlank()) {
+            return null; // no category filter requested
+        }
+        return categoryService.findByNameAndUser(categoryName.trim(), user);
+    }
+
+    /** For CREATING/SAVING: auto-creates "Other" if nothing matches — never returns null. */
     private Category resolveCategory(Long categoryId, String categoryName, User user) {
         if (categoryId != null) {
             return categoryService.findByIdAndUser(categoryId, user);

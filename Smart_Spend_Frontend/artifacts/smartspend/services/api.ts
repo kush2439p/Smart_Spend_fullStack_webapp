@@ -141,8 +141,13 @@ export const budgetsApi = {
 export const analyticsApi = {
   getDaily: (month: number, year: number) =>
     request<DailyAnalytics[]>("GET", `/analytics/daily?month=${month}&year=${year}`),
-  getCategoryBreakdown: () =>
-    request<CategoryBreakdown[]>("GET", "/analytics/category-breakdown"),
+  getCategoryBreakdown: (month?: number, year?: number) => {
+    const params = new URLSearchParams();
+    if (month !== undefined) params.append("month", String(month));
+    if (year !== undefined) params.append("year", String(year));
+    const qs = params.toString();
+    return request<CategoryBreakdown[]>("GET", `/analytics/category-breakdown${qs ? `?${qs}` : ""}`);
+  },
   getMonthlyComparison: () =>
     request<MonthlyComparison[]>("GET", "/analytics/monthly-comparison"),
 };

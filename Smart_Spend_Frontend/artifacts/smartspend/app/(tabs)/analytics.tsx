@@ -36,7 +36,7 @@ export default function AnalyticsScreen() {
   const load = useCallback(async () => {
     try {
       const [bd, m, d] = await Promise.all([
-        analyticsApi.getCategoryBreakdown(),
+        analyticsApi.getCategoryBreakdown(selectedMonth + 1, selectedYear),
         analyticsApi.getMonthlyComparison(),
         analyticsApi.getDaily(selectedMonth + 1, selectedYear),
       ]);
@@ -54,6 +54,7 @@ export default function AnalyticsScreen() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const totalExpense = breakdown.reduce((s, b) => s + b.amount, 0);
+  const totalIncome = daily.reduce((s, d) => s + d.income, 0);
 
   return (
     <ScrollView
@@ -72,11 +73,17 @@ export default function AnalyticsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Analytics Hub</Text>
         <View style={styles.monthNav}>
-          <Pressable onPress={() => setSelectedMonth((m) => m === 0 ? 11 : m - 1)}>
+          <Pressable onPress={() => {
+            if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
+            else setSelectedMonth(m => m - 1);
+          }}>
             <Feather name="chevron-left" size={20} color={Colors.text} />
           </Pressable>
           <Text style={styles.monthText}>{MONTHS[selectedMonth]} {selectedYear}</Text>
-          <Pressable onPress={() => setSelectedMonth((m) => m === 11 ? 0 : m + 1)}>
+          <Pressable onPress={() => {
+            if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
+            else setSelectedMonth(m => m + 1);
+          }}>
             <Feather name="chevron-right" size={20} color={Colors.text} />
           </Pressable>
         </View>
@@ -98,7 +105,7 @@ export default function AnalyticsScreen() {
         <View style={[styles.summaryCard, { borderLeftColor: Colors.income }]}>
           <Text style={styles.summaryLabel}>Total Income</Text>
           <Text style={[styles.summaryValue, { color: Colors.income }]}>
-            ₹{monthly[monthly.length - 1]?.income.toLocaleString() ?? "0"}
+            ₹{totalIncome.toLocaleString()}
           </Text>
           <Text style={styles.summaryChange}>
             <Feather name="trending-up" size={12} color={Colors.income} /> +12.4%
