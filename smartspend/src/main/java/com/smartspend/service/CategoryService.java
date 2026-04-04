@@ -153,7 +153,32 @@ public class CategoryService {
     }
 
     public Category findByNameAndUser(String name, User user) {
-        return categoryRepository.findByUserAndName(user, name)
-                .orElse(null);
+        // 1. Exact match
+        Category exact = categoryRepository.findByUserAndName(user, name).orElse(null);
+        if (exact != null) return exact;
+        // 2. Case-insensitive match
+        return categoryRepository.findByUserAndNameIgnoreCase(user, name).orElse(null);
+    }
+
+    @Transactional
+    public Category findOrCreateByName(String name, User user) {
+        if (name == null || name.isBlank()) name = "Other";
+        Category found = findByNameAndUser(name, user);
+        if (found != null) return found;
+        // Try "Other" as final fallback before creating
+        if (!"Other".equalsIgnoreCase(name)) {
+            Category other = findByNameAndUser("Other", user);
+            if (other != null) return other;
+        }
+        // Auto-create the category so the save succeeds
+        Category newCat = Category.builder()
+                .user(user)
+                .name(name)
+                .type(Category.CategoryType.EXPENSE)
+                .color("#6b7280")
+                .icon("📁")
+                .isDefault(false)
+                .build();
+        return categoryRepository.save(newCat);
     }
 }

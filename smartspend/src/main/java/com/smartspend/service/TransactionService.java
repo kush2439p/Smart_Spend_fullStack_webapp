@@ -187,10 +187,11 @@ public class TransactionService {
         if (categoryId != null) {
             return categoryService.findByIdAndUser(categoryId, user);
         }
-        if (categoryName == null || categoryName.isBlank()) return null;
-        Category category = categoryService.findByNameAndUser(categoryName.trim(), user);
-        if (category == null) throw new ResourceNotFoundException("Category not found: " + categoryName);
-        return category;
+        // Use findOrCreateByName — never throws, creates the category if missing
+        return categoryService.findOrCreateByName(
+                (categoryName == null || categoryName.isBlank()) ? "Other" : categoryName.trim(),
+                user
+        );
     }
 
     private LocalDate parseRequestDate(String rawDate) {
