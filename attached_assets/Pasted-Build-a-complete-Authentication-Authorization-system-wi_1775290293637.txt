@@ -1,0 +1,298 @@
+Build a complete Authentication & Authorization system with the following 
+exact flow. Tech stack is your choice but must have a REST API backend 
+and a mobile-friendly frontend.
+
+═══════════════════════════════════════════════════════════════════════
+APP NAME: SmartSpend (Personal Expense Tracker)
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
+FLOW 1 — REGISTRATION
+═══════════════════════════════════════════════════════════════════════
+
+SCREEN: Register
+Fields:
+  - Full Name (required)
+  - Email (required, must be valid email format)
+  - Password (required, minimum 6 characters)
+  - Confirm Password (required, must match password)
+
+Validations:
+  - All fields required
+  - Email must be valid format
+  - Password and confirm password must match
+  - If email already exists in DB → show error: 
+    "This email is already registered. Please login instead."
+
+On Submit:
+  1. Create user in database with these fields:
+     - name
+     - email  
+     - password (hashed with bcrypt, NEVER store plain text)
+     - isEmailVerified = FALSE
+     - verificationToken = randomly generated secure UUID
+     - verificationTokenExpiry = 24 hours from now
+     - createdAt = current timestamp
+
+  2. Send verification email to the user's email address
+     Email contains:
+     - Subject: "Verify your SmartSpend account"
+     - A button/link that says "Verify My Email"
+     - The link format: https://yourapp.com/verify-email?token=VERIFICATION_TOKEN
+     - Message that link expires in 24 hours
+
+  3. Redirect user to a "Check Your Email" screen
+     Do NOT log the user in yet
+     Do NOT let user access dashboard yet
+
+SCREEN: Check Your Email
+  - Shows message: "We sent a verification link to [email]. 
+    Please check your inbox and click the link to activate your account."
+  - Button: "Back to Login"  → goes to login screen
+  - Button: "Resend Email"   → triggers resend flow (see Flow 3 below)
+  - Button: "Wrong email? Register again" → goes to register screen
+
+═══════════════════════════════════════════════════════════════════════
+FLOW 2 — EMAIL VERIFICATION (works on ANY platform — web or mobile)
+═══════════════════════════════════════════════════════════════════════
+
+When user clicks the verification link in their email it opens in browser:
+  GET /verify-email?token=VERIFICATION_TOKEN
+
+Backend logic:
+  1. Find user by verificationToken in database
+  2. If token NOT found → show error page: 
+     "Invalid verification link. Please register again or request a new link."
+  3. If token IS found but EXPIRED (past 24 hours) → show error page:
+     "This verification link has expired. 
+      Please request a new verification email."
+     With button: "Request New Verification Email"
+  4. If token IS found and NOT expired:
+     - Set user.isEmailVerified = TRUE
+     - Set user.verificationToken = NULL
+     - Set user.verificationTokenExpiry = NULL
+     - Save to database
+     - Show SUCCESS page in browser:
+       "Your email has been verified successfully! 
+        You can now open the SmartSpend app and login."
+     - Send welcome email to user (optional but nice)
+
+IMPORTANT: Verification must work from ANY browser on ANY device.
+The verification link is a normal HTTPS web link, NOT a deep link.
+After verification the user just sees a success page in the browser,
+then they go back to the app and login manually.
+
+═══════════════════════════════════════════════════════════════════════
+FLOW 3 — RESEND VERIFICATION EMAIL
+═══════════════════════════════════════════════════════════════════════
+
+Triggered from the "Check Your Email" screen → "Resend Email" button
+
+Frontend:
+  - User clicks "Resend Email"
+  - If user already verified → show: "Your email is already verified. 
+    Please login."
+  - Call API: POST /api/auth/resend-verification
+    Body: { "email": "user@example.com" }
+  - Show loading spinner while sending
+  - On success → show: "Verification email sent! Check your inbox."
+  - Disable the resend button for 60 seconds with countdown timer:
+    "Resend in 58s... 57s..." to prevent spam
+  - After 60 seconds → re-enable the button
+
+Backend API: POST /api/auth/resend-verification
+  Request body: { "email": "user@example.com" }
+  Logic:
+  1. Find user by email
+  2. If not found → return 404: 
+     "No account found with this email. Please register first."
+  3. If already verified → return 400: 
+     "This email is already verified. Please login."
+  4. If found and not verified:
+     - Generate new verificationToken (UUID)
+     - Set new verificationTokenExpiry (24 hours from now)
+     - Save to database
+     - Send verification email again
+     - Return 200: "Verification email sent successfully"
+
+═══════════════════════════════════════════════════════════════════════
+FLOW 4 — LOGIN
+═══════════════════════════════════════════════════════════════════════
+
+SCREEN: Login
+Fields:
+  - Email
+  - Password
+  - "Forgot Password?" link → goes to Forgot Password screen
+
+On Submit:
+  Backend logic:
+  1. Find user by email
+  2. If not found → error: "Invalid email or password"
+     (do not reveal whether email exists for security)
+  3. If found but isEmailVerified = FALSE → error:
+     "Please verify your email before logging in. 
+      Check your inbox or request a new verification email."
+     Show button: "Resend verification email"
+  4. If found and verified → check password with bcrypt
+  5. If password wrong → error: "Invalid email or password"
+  6. If password correct:
+     - Generate JWT token (expires in 24 hours)
+     - Return JWT token + user data
+     - Frontend stores JWT token securely
+     - Redirect to Dashboard
+
+Protected routes:
+  - All routes except login, register, verify-email, 
+    forgot-password, reset-password must require valid JWT
+  - If JWT missing or expired → redirect to login
+
+═══════════════════════════════════════════════════════════════════════
+FLOW 5 — FORGOT PASSWORD
+═══════════════════════════════════════════════════════════════════════
+
+SCREEN: Forgot Password
+  - One field: Email address
+  - Button: "Send Reset Link"
+  - Link: "Back to Login"
+
+On Submit:
+  Backend API: POST /api/auth/forgot-password
+  Body: { "email": "user@example.com" }
+  Logic:
+  1. Find user by email
+  2. If not found → return error:
+     "No account found with this email. Please register first."
+  3. If found:
+     - Generate secure random resetToken (UUID)
+     - Set resetTokenExpiry = 1 hour from now
+     - Save to database
+     - Send password reset email
+     - Return 200: "Password reset link sent to your email"
+
+  Password reset email contains:
+  - Subject: "Reset your SmartSpend password"
+  - A button: "Reset My Password"
+  - Link: https://yourapp.com/reset-password?token=RESET_TOKEN
+  - The reset token also shown as plain text in the email so user 
+    can copy-paste it manually if the button doesn't work:
+    "Your reset token: RESET_TOKEN"
+  - Warning: "This link expires in 1 hour"
+
+Frontend on success:
+  - Show message: "Reset link sent! Check your email."
+  - Show button: "I have a reset token →" 
+    → navigates to Reset Password screen
+    (so user can manually paste the token if link doesn't open app)
+
+═══════════════════════════════════════════════════════════════════════
+FLOW 6 — RESET PASSWORD
+═══════════════════════════════════════════════════════════════════════
+
+SCREEN: Reset Password
+Fields:
+  - Reset Token (text input, pre-filled if token in URL params, 
+    but editable so user can paste manually)
+    Placeholder: "Paste your reset token here"
+    Helper text: "Copy the token from your email and paste it here"
+  - New Password (hidden, with show/hide toggle)
+  - Confirm Password (hidden, with show/hide toggle)
+  - Button: "Reset Password"
+
+Validations:
+  - Token must not be empty → "Please enter your reset token"
+  - New password required → "Please enter a new password"
+  - Min 6 characters → "Password must be at least 6 characters"
+  - Passwords must match → "Passwords do not match"
+
+On Submit:
+  Backend API: POST /api/auth/reset-password
+  Body: { "token": "RESET_TOKEN", "newPassword": "newpass123" }
+  Logic:
+  1. Find user by resetToken
+  2. If not found → error: "Invalid reset token. Please request a new one."
+  3. If found but expired → error: 
+     "Reset token has expired. Please request a new password reset."
+  4. If valid:
+     - Hash new password with bcrypt
+     - Update user password in database
+     - Set resetToken = NULL
+     - Set resetTokenExpiry = NULL
+     - Save to database
+     - Send confirmation email: "Your password was reset successfully"
+     - Return 200: "Password reset successfully"
+
+Frontend on success:
+  - Show alert: "Password reset successfully! Please login with your new password."
+  - Redirect to Login screen
+
+═══════════════════════════════════════════════════════════════════════
+SECURITY REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════
+
+Public endpoints (no JWT required):
+  POST /api/auth/register
+  POST /api/auth/login
+  GET  /api/auth/verify-email (or /verify-email as web page)
+  POST /api/auth/resend-verification
+  POST /api/auth/forgot-password
+  POST /api/auth/reset-password
+
+Protected endpoints (JWT required):
+  Everything else
+
+Password rules:
+  - Always hash with bcrypt before storing
+  - Never store or log plain text passwords
+  - Never return password in any API response
+
+Token rules:
+  - JWT expires in 24 hours
+  - Verification token expires in 24 hours
+  - Reset token expires in 1 hour
+  - All tokens are single-use (clear from DB after use)
+  - All tokens are cryptographically random UUIDs
+
+═══════════════════════════════════════════════════════════════════════
+DATABASE — USER TABLE
+═══════════════════════════════════════════════════════════════════════
+
+users table:
+  id                      (primary key, auto increment)
+  name                    (string, required)
+  email                   (string, required, unique)
+  password                (string, hashed, required)
+  isEmailVerified         (boolean, default FALSE)
+  verificationToken       (string, nullable)
+  verificationTokenExpiry (datetime, nullable)
+  resetToken              (string, nullable)
+  resetTokenExpiry        (datetime, nullable)
+  createdAt               (datetime, auto)
+  updatedAt               (datetime, auto)
+
+═══════════════════════════════════════════════════════════════════════
+COMPLETE USER JOURNEY SUMMARY
+═══════════════════════════════════════════════════════════════════════
+
+NEW USER:
+  Register → Check Your Email screen → 
+  Open email on any device → Click verify link → 
+  Browser shows "Verified!" page → 
+  Go back to app → Login → Dashboard ✅
+
+DIDN'T GET EMAIL:
+  Register → Check Your Email screen → 
+  Click "Resend Email" → Wait for new email → 
+  Click verify link → Browser shows "Verified!" → 
+  Go back to app → Login → Dashboard ✅
+
+FORGOT PASSWORD:
+  Login screen → "Forgot Password?" → 
+  Enter email → Get reset email → 
+  Copy token from email → 
+  Click "I have a reset token" button → 
+  Paste token + enter new password → Submit → 
+  "Password reset!" → Login with new password → Dashboard ✅
+
+RETURNING USER:
+  Login → Dashboard ✅
