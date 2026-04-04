@@ -127,8 +127,12 @@ export const MOCK_BUDGETS: Budget[] = [
 
 export const MOCK_DASHBOARD: DashboardSummary = {
   totalBalance: 24562,
+  totalIncome: 45000,
+  totalExpense: 20438,
   monthlyIncome: 8240.5,
   monthlyExpense: 3120,
+  summaryMonth: new Date().getMonth() + 1,
+  summaryYear: new Date().getFullYear(),
   recentTransactions: MOCK_TRANSACTIONS.slice(0, 5),
   budgetAlerts: [
     { categoryName: "Shopping", percentage: 93.3 },

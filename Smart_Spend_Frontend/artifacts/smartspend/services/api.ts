@@ -231,8 +231,12 @@ export interface User {
 
 export interface DashboardSummary {
   totalBalance: number;
+  totalIncome: number;
+  totalExpense: number;
   monthlyIncome: number;
   monthlyExpense: number;
+  summaryMonth: number;
+  summaryYear: number;
   recentTransactions: Transaction[];
   budgetAlerts: BudgetAlert[];
   spendingTrend: { date: string; amount: number }[];

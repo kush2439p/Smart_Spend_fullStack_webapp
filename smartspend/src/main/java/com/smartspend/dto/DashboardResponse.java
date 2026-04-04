@@ -15,9 +15,13 @@ import java.util.List;
 public class DashboardResponse {
 
     private BigDecimal totalBalance;
+    private BigDecimal totalIncome;
+    private BigDecimal totalExpense;
     private BigDecimal monthlyIncome;
     private BigDecimal monthlyExpense;
     private BigDecimal monthlySaved;
+    private int summaryMonth;
+    private int summaryYear;
     private List<TransactionResponse> recentTransactions;
     private List<TopCategory> topCategories;
     private List<BudgetResponse> budgetAlerts;

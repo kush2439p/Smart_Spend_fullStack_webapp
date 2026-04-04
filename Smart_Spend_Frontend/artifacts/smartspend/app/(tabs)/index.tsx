@@ -166,10 +166,12 @@ export default function DashboardScreen() {
           <View style={styles.balCardCircle3} />
           <View style={styles.balCardHeader}>
             <Text style={styles.balanceLabel}>Total Balance</Text>
-            <View style={styles.balCardBadge}><Text style={styles.balCardBadgeText}>March 2026</Text></View>
+            <View style={styles.balCardBadge}>
+              <Text style={styles.balCardBadgeText}>All Time</Text>
+            </View>
           </View>
           <Text style={styles.balanceAmount}>
-            {currencySymbol}{data.totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {currencySymbol}{(data.totalBalance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </Text>
           <View style={styles.balanceDivider} />
           <View style={styles.balanceRow}>
@@ -180,7 +182,7 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.balStatLabel}>Income</Text>
                 <Text style={[styles.balStatValue, { color: Colors.income }]}>
-                  +{currencySymbol}{data.monthlyIncome.toLocaleString()}
+                  +{currencySymbol}{(data.totalIncome ?? 0).toLocaleString()}
                 </Text>
               </View>
             </View>
@@ -192,7 +194,7 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.balStatLabel}>Expenses</Text>
                 <Text style={[styles.balStatValue, { color: Colors.expense }]}>
-                  -{currencySymbol}{data.monthlyExpense.toLocaleString()}
+                  -{currencySymbol}{(data.totalExpense ?? 0).toLocaleString()}
                 </Text>
               </View>
             </View>

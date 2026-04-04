@@ -68,6 +68,8 @@ export default function SmsScannerScreen() {
   const [source, setSource] = useState<"sms" | "clipboard" | null>(null);
   const [lastClipboard, setLastClipboard] = useState("");
 
+  // Use a ref so callbacks don't go stale when parsing changes
+  const parsingRef = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const smsSubscription = useRef<any>(null);
 
@@ -86,7 +88,8 @@ export default function SmsScannerScreen() {
 
   const doParseAndSave = useCallback(
     async (text: string, src: "sms" | "clipboard") => {
-      if (!text.trim() || parsing) return;
+      if (!text.trim() || parsingRef.current) return;
+      parsingRef.current = true;
       setSource(src);
       setParsing(true);
       setParsed(null);
@@ -94,16 +97,17 @@ export default function SmsScannerScreen() {
       try {
         const result = await smsApi.parse(text.trim(), new Date().toISOString());
         setParsed(result as unknown as ParsedSms);
-      } catch {
+      } catch (err: any) {
         Alert.alert(
           "Parse Error",
           "Could not read this SMS. Make sure it is a bank or UPI transaction message."
         );
       } finally {
+        parsingRef.current = false;
         setParsing(false);
       }
     },
-    [parsing]
+    []
   );
 
   // ── REQUEST PERMISSIONS ─────────────────────────────────────────────────────

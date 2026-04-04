@@ -88,6 +88,10 @@ public class DashboardService {
 
         return DashboardResponse.builder()
                 .totalBalance(totalBalance)
+                .totalIncome(totalIncome)
+                .totalExpense(totalExpense)
+                .summaryMonth(currentMonth)
+                .summaryYear(currentYear)
                 .monthlyIncome(monthlyIncome)
                 .monthlyExpense(monthlyExpense)
                 .monthlySaved(monthlySaved)
