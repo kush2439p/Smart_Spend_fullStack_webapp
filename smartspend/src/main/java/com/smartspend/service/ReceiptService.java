@@ -28,7 +28,7 @@ public class ReceiptService {
     private String geminiApiKey;
 
     private static final String GEMINI_API_URL =
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+            "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=";
 
     private static final String EXTRACTION_PROMPT =
             "You are a financial receipt/bill scanner. Extract transaction details and return ONLY a valid JSON object " +
