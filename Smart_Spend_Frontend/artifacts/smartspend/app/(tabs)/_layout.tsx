@@ -17,19 +17,27 @@ export default function TabLayout() {
     return <Redirect href="/onboarding" />;
   }
 
+  const tabBg = isDark ? "#1C1B2E" : "#FFFFFF";
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: isDark ? "#666" : "#9CA3AF",
-        tabBarLabelStyle: { fontFamily: "Inter_500Medium", fontSize: 10 },
+        tabBarInactiveTintColor: isDark ? "#888" : "#6B7280",
+        tabBarLabelStyle: { fontFamily: "Inter_500Medium", fontSize: 10, marginTop: -2 },
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : isDark ? "#1C1B2E" : "#fff",
-          borderTopWidth: 0,
-          elevation: 0,
+          backgroundColor: tabBg,
+          borderTopWidth: 1,
+          borderTopColor: isDark ? "#2D2B45" : "#E5E7EB",
+          elevation: 12,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
           ...(isWeb ? { height: 84, paddingBottom: 34 } : {}),
+          ...(Platform.OS === "android" ? { paddingBottom: 8, height: 64 } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
@@ -38,9 +46,9 @@ export default function TabLayout() {
               tint={isDark ? "dark" : "light"}
               style={[StyleSheet.absoluteFill, { borderTopWidth: 0.5, borderTopColor: isDark ? "#333" : "#E5E7EB" }]}
             />
-          ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? "#1C1B2E" : "#fff", borderTopWidth: 1, borderTopColor: isDark ? "#333" : "#E5E7EB" }]} />
-          ) : null,
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: tabBg, borderTopWidth: 1, borderTopColor: isDark ? "#2D2B45" : "#E5E7EB" }]} />
+          ),
       }}
     >
       <Tabs.Screen

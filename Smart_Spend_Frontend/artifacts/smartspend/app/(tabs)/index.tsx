@@ -211,6 +211,12 @@ export default function DashboardScreen() {
           <QuickActionBtn icon="camera" label="Receipt" color={Colors.primary} emoji="📷" onPress={() => router.push("/receipt-scanner")} />
           <QuickActionBtn icon="message-square" label="Scan SMS" color="#00B894" emoji="💬" onPress={() => router.push("/sms-scanner")} />
         </View>
+        <View style={styles.quickActions}>
+          <QuickActionBtn icon="target" label="Budgets" color="#F59E0B" emoji="🎯" onPress={() => router.push("/budgets")} />
+          <QuickActionBtn icon="tag" label="Categories" color="#8B5CF6" emoji="🏷️" onPress={() => router.push("/categories")} />
+          <QuickActionBtn icon="bar-chart-2" label="Analytics" color="#06B6D4" emoji="📊" onPress={() => router.push("/(tabs)/analytics")} />
+          <QuickActionBtn icon="list" label="Transactions" color="#EC4899" emoji="📋" onPress={() => router.push("/(tabs)/transactions")} />
+        </View>
       </Animated.View>
 
       {/* ── Spending Trend ── */}

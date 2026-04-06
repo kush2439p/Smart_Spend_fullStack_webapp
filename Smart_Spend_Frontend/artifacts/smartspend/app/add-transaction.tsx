@@ -82,8 +82,8 @@ export default function AddTransactionScreen() {
       <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Feather name="x" size={24} color={Colors.text} />
+          <Pressable style={styles.closeBtn} onPress={() => router.back()}>
+            <Feather name="x" size={20} color={Colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Add Transaction</Text>
           <View style={{ width: 24 }} />
@@ -231,6 +231,7 @@ export default function AddTransactionScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16 },
+  closeBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 18, color: Colors.text },
   typeToggle: {
     flexDirection: "row",

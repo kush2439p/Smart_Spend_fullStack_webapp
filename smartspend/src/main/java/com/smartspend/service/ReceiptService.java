@@ -31,19 +31,27 @@ public class ReceiptService {
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
 
     private static final String EXTRACTION_PROMPT =
-            "You are a financial receipt/bill scanner. Extract transaction details and return ONLY a valid JSON object " +
-            "with absolutely no extra text, no markdown, no code blocks:\n" +
+            "You are a smart financial photo scanner. Analyze this image and extract any financial transaction information.\n" +
+            "This could be a receipt, bill, invoice, bank statement, UPI payment screenshot, food delivery bill, shopping bill, or any image showing a financial transaction.\n" +
+            "If you can see any amount, merchant, or transaction information — extract it.\n" +
+            "Return ONLY a valid JSON object with no markdown or code blocks:\n" +
             "{\n" +
-            "  \"merchant\": \"store or company name (string)\",\n" +
+            "  \"merchant\": \"store, app, or company name — or describe what you see\",\n" +
             "  \"amount\": total_amount_as_number_no_symbols,\n" +
             "  \"date\": \"YYYY-MM-DD or null\",\n" +
             "  \"category\": \"exactly one of: Food, Transport, Shopping, Entertainment, Healthcare, Utilities, Education, Travel, Groceries, Dining, Other\",\n" +
             "  \"type\": \"expense or income\",\n" +
             "  \"items\": [\"item1\", \"item2\"],\n" +
-            "  \"currency\": \"INR or USD etc\",\n" +
-            "  \"notes\": \"any extra info or empty string\"\n" +
+            "  \"currency\": \"INR or USD or other\",\n" +
+            "  \"notes\": \"any extra details — what you see in the image\"\n" +
             "}\n" +
-            "Rules: amount must be a plain number (e.g. 250.50), date must be YYYY-MM-DD or null, type must be expense or income.";
+            "Rules:\n" +
+            "- amount must be a plain number (e.g. 250.50). If multiple amounts, use the total/grand total.\n" +
+            "- If no clear amount is visible, put 0 and describe what you see in notes.\n" +
+            "- date must be YYYY-MM-DD or null.\n" +
+            "- type is expense for payments/purchases, income for received money/salary/refunds.\n" +
+            "- Always fill in as many fields as you can from what you see in the image.\n" +
+            "- Assume INR (Indian Rupees) unless you see another currency symbol.";
 
     public Map<String, Object> scanReceipt(MultipartFile file) {
         try {

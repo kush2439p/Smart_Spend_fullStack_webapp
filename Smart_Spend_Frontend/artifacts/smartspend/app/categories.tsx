@@ -64,8 +64,8 @@ export default function CategoriesScreen() {
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color={Colors.text} />
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Feather name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Categories</Text>
         <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16 },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 22, color: Colors.text },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
   addBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primary + "15", alignItems: "center", justifyContent: "center" },
   subtitle: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary, paddingHorizontal: 20, marginBottom: 16 },
   searchBar: {
