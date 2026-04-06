@@ -6,11 +6,11 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router, Stack, useSegments } from "expo-router";
-import * as Font from "expo-font";
+import { useFonts } from "expo-font";
 import { Feather } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
+import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -37,27 +37,13 @@ function AuthGuard() {
     const inProtected = segment === PROTECTED_SEGMENT;
     const inAuthScreen = !segment || AUTH_SCREENS.includes(segment);
 
-    console.log("AuthGuard Debug:", {
-      segment,
-      inProtected,
-      inAuthScreen,
-      hasUser: !!user,
-      isEmailVerified,
-      userEmail: user?.email,
-    });
-
     if (!user && inProtected) {
-      console.log("AuthGuard: Redirecting to onboarding (no user)");
       router.replace("/onboarding");
     } else if (user && inAuthScreen) {
       if (isEmailVerified) {
-        console.log("AuthGuard: Redirecting to tabs (user verified)");
         router.replace("/(tabs)");
-      } else {
-        console.log("AuthGuard: User not verified, staying on current auth screen");
       }
     } else if (user && inProtected && !isEmailVerified) {
-      console.log("AuthGuard: Redirecting to verify-email (user not verified)");
       router.replace("/verify-email");
     }
   }, [user, segments, isLoading, isEmailVerified]);
@@ -110,26 +96,21 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [fontsReady, setFontsReady] = useState(false);
+  const [fontsLoaded] = useFonts({
+    ...Feather.font,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   useEffect(() => {
-    // Load each font family in its own independent call.
-    // Promise.allSettled never rejects — one failure won't prevent others from loading.
-    Promise.allSettled([
-      Font.loadAsync({ ...Feather.font }),
-      Font.loadAsync({
-        Inter_400Regular,
-        Inter_500Medium,
-        Inter_600SemiBold,
-        Inter_700Bold,
-      }),
-    ]).finally(() => {
-      setFontsReady(true);
-      SplashScreen.hideAsync().catch(() => {});
-    });
-  }, []);
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
-  if (!fontsReady) return null;
+  if (!fontsLoaded) return null;
 
   const isWeb = Platform.OS === "web";
 
