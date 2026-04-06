@@ -21,19 +21,9 @@ import { useAuth } from "@/context/AuthContext";
 import { dashboardApi, DashboardSummary, Transaction } from "@/services/api";
 import { MOCK_DASHBOARD } from "@/services/mockData";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getCurrencySymbol, convertFromINR } from "@/utils/currency";
 
 const { width } = Dimensions.get("window");
-
-// Currency symbol helper
-const getCurrencySymbol = (currency: string) => {
-  switch (currency?.toUpperCase()) {
-    case 'USD': return '$';
-    case 'EUR': return '€';
-    case 'GBP': return '£';
-    case 'JPY': return '¥';
-    default: return '₹';
-  }
-};
 
 function getRealNotifications(budgetAlerts: { categoryName: string; percentage: number }[]) {
   const notifs: { id: string; icon: string; color: string; title: string; body: string; time: string }[] = [];
@@ -171,7 +161,7 @@ export default function DashboardScreen() {
             </View>
           </View>
           <Text style={styles.balanceAmount}>
-            {currencySymbol}{(data.totalBalance ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            {currencySymbol}{convertFromINR(data.totalBalance ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 2 })}
           </Text>
           <View style={styles.balanceDivider} />
           <View style={styles.balanceRow}>
@@ -182,7 +172,7 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.balStatLabel}>Income</Text>
                 <Text style={[styles.balStatValue, { color: Colors.income }]}>
-                  +{currencySymbol}{(data.totalIncome ?? 0).toLocaleString()}
+                  +{currencySymbol}{convertFromINR(data.totalIncome ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </Text>
               </View>
             </View>
@@ -194,7 +184,7 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.balStatLabel}>Expenses</Text>
                 <Text style={[styles.balStatValue, { color: Colors.expense }]}>
-                  -{currencySymbol}{(data.totalExpense ?? 0).toLocaleString()}
+                  -{currencySymbol}{convertFromINR(data.totalExpense ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </Text>
               </View>
             </View>
@@ -271,7 +261,7 @@ export default function DashboardScreen() {
         </View>
         <View style={styles.txList}>
           {data.recentTransactions.map((t, i) => (
-            <TransactionRow key={t.id} transaction={t} index={i} currencySymbol={currencySymbol} />
+            <TransactionRow key={t.id} transaction={t} index={i} currencySymbol={currencySymbol} currency={user?.currency || "INR"} />
           ))}
         </View>
       </Animated.View>
@@ -304,11 +294,15 @@ function QuickActionBtn({ icon, label, color, emoji, onPress }: { icon: string; 
   );
 }
 
-function TransactionRow({ transaction: t, index, currencySymbol }: { transaction: Transaction; index: number; currencySymbol: string }) {
+function TransactionRow({ transaction: t, index, currencySymbol, currency }: { transaction: Transaction; index: number; currencySymbol: string; currency: string }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(anim, { toValue: 1, duration: 350, delay: index * 60, useNativeDriver: true }).start();
   }, []);
+  const displayAmt = convertFromINR(Math.abs(t.amount), currency);
+  const amtStr = displayAmt >= 1000
+    ? displayAmt.toLocaleString("en-US", { maximumFractionDigits: 0 })
+    : displayAmt.toFixed(2);
   return (
     <Animated.View style={[styles.txRow, { opacity: anim, transform: [{ translateX: anim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
       <View style={[styles.txIcon, { backgroundColor: t.categoryColor + "20" }]}>
@@ -320,7 +314,7 @@ function TransactionRow({ transaction: t, index, currencySymbol }: { transaction
       </View>
       <View style={styles.txRight}>
         <Text style={[styles.txAmount, { color: t.type === "income" ? Colors.income : Colors.expense }]}>
-          {t.type === "income" ? "+" : "-"}{currencySymbol}{Math.abs(t.amount).toFixed(2)}
+          {t.type === "income" ? "+" : "-"}{currencySymbol}{amtStr}
         </Text>
         <Text style={styles.txDate}>{new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</Text>
       </View>

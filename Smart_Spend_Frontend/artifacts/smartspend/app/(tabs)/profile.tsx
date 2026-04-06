@@ -17,25 +17,37 @@ import { Feather } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { exportApi } from "@/services/api";
+import { getCurrencySymbol } from "@/utils/currency";
 
-const CURRENCIES = ["USD", "EUR", "GBP", "INR", "JPY"];
+const CURRENCIES = [
+  { code: "INR", name: "Indian Rupee" },
+  { code: "USD", name: "US Dollar" },
+  { code: "EUR", name: "Euro" },
+  { code: "GBP", name: "British Pound" },
+  { code: "JPY", name: "Japanese Yen" },
+  { code: "AED", name: "UAE Dirham" },
+  { code: "SGD", name: "Singapore Dollar" },
+];
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const { user, logout, updateUser } = useAuth();
   const [smsParsing, setSmsParsing] = useState(true);
-  const [emailParsing, setEmailParsing] = useState(false);
   const [budgetAlerts, setBudgetAlerts] = useState(true);
-  const [currency, setCurrency] = useState(user?.currency || "USD");
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  const currentCurrency = user?.currency || "INR";
+
   const handleExport = async (format: "pdf" | "excel") => {
     try {
-      const res = await exportApi.export(format);
-    } catch {}
+      await exportApi.export(format);
+      Alert.alert("Export Started", `Your data is being exported as ${format.toUpperCase()}.`);
+    } catch {
+      Alert.alert("Export", "Export feature coming soon!");
+    }
   };
 
   const handleLogout = async () => {
@@ -68,15 +80,9 @@ export default function ProfileScreen() {
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initials}</Text>
           </View>
-          <Pressable style={styles.editAvatarBtn}>
-            <Feather name="camera" size={14} color="#fff" />
-          </Pressable>
         </View>
         <Text style={styles.profileName}>{user?.name || "User"}</Text>
         <Text style={styles.profileEmail}>{user?.email || "user@example.com"}</Text>
-        <Pressable style={styles.editProfileBtn}>
-          <Text style={styles.editProfileText}>Edit Profile</Text>
-        </Pressable>
       </View>
 
       {/* Account Section */}
@@ -85,57 +91,36 @@ export default function ProfileScreen() {
         <SettingRow
           icon="dollar-sign"
           label="Base Currency"
-          value={currency}
+          value={`${getCurrencySymbol(currentCurrency)} ${currentCurrency}`}
           onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}
         />
         {showCurrencyPicker && (
           <View style={styles.currencyPicker}>
             {CURRENCIES.map((c) => (
               <Pressable
-                key={c}
-                style={[styles.currencyOption, c === currency && styles.currencyOptionActive]}
+                key={c.code}
+                style={[styles.currencyOption, c.code === currentCurrency && styles.currencyOptionActive]}
                 onPress={() => {
-                  setCurrency(c);
-                  updateUser({ currency: c });
+                  updateUser({ currency: c.code });
                   setShowCurrencyPicker(false);
+                  Alert.alert("Currency Updated", `All amounts are now shown in ${c.name} (${getCurrencySymbol(c.code)})`);
                 }}
               >
-                <Text style={[styles.currencyText, c === currency && styles.currencyTextActive]}>{c}</Text>
+                <Text style={[styles.currencyText, c.code === currentCurrency && styles.currencyTextActive]}>
+                  {getCurrencySymbol(c.code)} {c.code}
+                </Text>
               </Pressable>
             ))}
           </View>
         )}
-        <SettingRow icon="download" label="Export Data" onPress={() => Alert.alert("Export", "Choose format", [
-          { text: "PDF", onPress: () => handleExport("pdf") },
-          { text: "Excel", onPress: () => handleExport("excel") },
-          { text: "Cancel", style: "cancel" },
-        ])} />
-      </View>
-
-      {/* Connected Sources */}
-      <SectionHeader title="CONNECTED SOURCES" />
-      <View style={styles.section}>
-        <ToggleRow
-          icon="credit-card"
-          label="Bank Accounts"
-          subtitle="3 connected"
-          badge="Manage"
-          value={true}
-          onChange={() => {}}
-        />
-        <ToggleRow
-          icon="message-square"
-          label="SMS Parsing"
-          subtitle="Auto-log from SMS"
-          value={smsParsing}
-          onChange={setSmsParsing}
-        />
-        <ToggleRow
-          icon="mail"
-          label="Auto-Scan Emails"
-          subtitle="Parse email receipts"
-          value={emailParsing}
-          onChange={setEmailParsing}
+        <SettingRow
+          icon="download"
+          label="Export Data"
+          onPress={() => Alert.alert("Export", "Choose format", [
+            { text: "PDF", onPress: () => handleExport("pdf") },
+            { text: "Excel", onPress: () => handleExport("excel") },
+            { text: "Cancel", style: "cancel" },
+          ])}
         />
       </View>
 
@@ -143,9 +128,16 @@ export default function ProfileScreen() {
       <SectionHeader title="PREFERENCES" />
       <View style={styles.section}>
         <ToggleRow
+          icon="message-square"
+          label="SMS Auto-detect"
+          subtitle="Parse transactions from clipboard"
+          value={smsParsing}
+          onChange={setSmsParsing}
+        />
+        <ToggleRow
           icon="bell"
           label="Budget Alerts"
-          subtitle="Notify when over 80%"
+          subtitle="Notify when over 80% of budget"
           value={budgetAlerts}
           onChange={setBudgetAlerts}
         />
@@ -154,7 +146,7 @@ export default function ProfileScreen() {
         <SettingRow icon="info" label="About SmartSpend" value="v1.0.0" onPress={() => router.push("/about")} />
       </View>
 
-      {/* Navigation Links */}
+      {/* Manage */}
       <SectionHeader title="MANAGE" />
       <View style={styles.section}>
         <SettingRow icon="tag" label="Categories" onPress={() => router.push("/categories")} />
@@ -219,7 +211,7 @@ function SettingRow({ icon, label, value, onPress }: { icon: string; label: stri
   );
 }
 
-function ToggleRow({ icon, label, subtitle, badge, value, onChange }: { icon: string; label: string; subtitle: string; badge?: string; value: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({ icon, label, subtitle, value, onChange }: { icon: string; label: string; subtitle: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <View style={styles.settingRow}>
       <View style={styles.settingLeft}>
@@ -231,20 +223,12 @@ function ToggleRow({ icon, label, subtitle, badge, value, onChange }: { icon: st
           <Text style={styles.settingSubtitle}>{subtitle}</Text>
         </View>
       </View>
-      <View style={styles.settingRight}>
-        {badge ? (
-          <Pressable style={styles.badgeBtn}>
-            <Text style={styles.badgeText}>{badge}</Text>
-          </Pressable>
-        ) : (
-          <Switch
-            value={value}
-            onValueChange={onChange}
-            trackColor={{ true: Colors.primary, false: Colors.border }}
-            thumbColor="#fff"
-          />
-        )}
-      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: Colors.primary, false: Colors.border }}
+        thumbColor="#fff"
+      />
     </View>
   );
 }
@@ -268,30 +252,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   avatarText: { fontFamily: "Inter_700Bold", fontSize: 28, color: "#fff" },
-  editAvatarBtn: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.income,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
   profileName: { fontFamily: "Inter_700Bold", fontSize: 22, color: Colors.text },
   profileEmail: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
-  editProfileBtn: {
-    marginTop: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  editProfileText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.primary },
   sectionHeader: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
@@ -302,19 +264,17 @@ const styles = StyleSheet.create({
   },
   section: { backgroundColor: Colors.card, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, overflow: "hidden" },
   settingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: Colors.border + "80" },
-  settingLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
+  settingLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
   settingIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primary + "15", alignItems: "center", justifyContent: "center" },
   settingLabel: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.text },
   settingSubtitle: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   settingRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   settingValue: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary },
   currencyPicker: { flexDirection: "row", flexWrap: "wrap", gap: 8, padding: 16, borderTopWidth: 1, borderTopColor: Colors.border },
-  currencyOption: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
+  currencyOption: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: Colors.background, borderWidth: 1, borderColor: Colors.border },
   currencyOptionActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   currencyText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.text },
   currencyTextActive: { color: "#fff" },
-  badgeBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, backgroundColor: Colors.primary + "15" },
-  badgeText: { fontFamily: "Inter_500Medium", fontSize: 11, color: Colors.primary },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",

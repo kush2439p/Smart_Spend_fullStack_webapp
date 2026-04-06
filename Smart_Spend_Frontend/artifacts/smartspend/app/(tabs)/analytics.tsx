@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,8 +14,10 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { analyticsApi, CategoryBreakdown, MonthlyComparison, DailyAnalytics } from "@/services/api";
 import { MOCK_CATEGORY_BREAKDOWN, MOCK_MONTHLY, MOCK_DAILY } from "@/services/mockData";
+import { getCurrencySymbol, convertFromINR, formatCurrency } from "@/utils/currency";
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 48;
@@ -25,6 +27,10 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const { user } = useAuth();
+  const currency = user?.currency || "INR";
+  const symbol = getCurrencySymbol(currency);
+
   const [breakdown, setBreakdown] = useState<CategoryBreakdown[]>(MOCK_CATEGORY_BREAKDOWN);
   const [monthly, setMonthly] = useState<MonthlyComparison[]>(MOCK_MONTHLY);
   const [daily, setDaily] = useState<DailyAnalytics[]>(MOCK_DAILY);
@@ -106,7 +112,7 @@ export default function AnalyticsScreen() {
         <View style={[styles.summaryCard, { borderLeftColor: Colors.income }]}>
           <Text style={styles.summaryLabel}>Total Income</Text>
           <Text style={[styles.summaryValue, { color: Colors.income }]}>
-            ₹{totalIncome.toLocaleString()}
+            {formatCurrency(totalIncome, currency)}
           </Text>
           <Text style={styles.summaryChange}>
             <Feather name="trending-up" size={12} color={Colors.income} /> +12.4%
@@ -115,7 +121,7 @@ export default function AnalyticsScreen() {
         <View style={[styles.summaryCard, { borderLeftColor: Colors.expense }]}>
           <Text style={styles.summaryLabel}>Total Spent</Text>
           <Text style={[styles.summaryValue, { color: Colors.expense }]}>
-            ₹{totalExpense.toLocaleString()}
+            {formatCurrency(totalExpense, currency)}
           </Text>
           <Text style={styles.summaryChange}>
             <Feather name="trending-down" size={12} color={Colors.expense} /> -8.2%
@@ -126,49 +132,62 @@ export default function AnalyticsScreen() {
       {/* Main Chart Area */}
       {activeTab === "overview" && (
         <>
-          {/* Pie Chart (simplified bar-based) */}
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Expense Breakdown</Text>
-            <PieChartSimple data={breakdown} />
-            <View style={styles.legend}>
-              {breakdown.map((b) => (
-                <View key={b.category} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: b.color }]} />
-                  <Text style={styles.legendLabel}>{b.category}</Text>
-                  <Text style={styles.legendPct}>{b.percentage}%</Text>
-                </View>
-              ))}
+          {breakdown.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Feather name="pie-chart" size={36} color={Colors.border} />
+              <Text style={styles.emptyText}>No expense data this month</Text>
             </View>
-          </View>
-
-          {/* Category Ranking */}
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Top Categories</Text>
-            {breakdown
-              .sort((a, b) => b.amount - a.amount)
-              .map((b, i) => (
-                <View key={b.category} style={styles.rankRow}>
-                  <Text style={styles.rankNum}>{i + 1}</Text>
-                  <View style={[styles.rankIcon, { backgroundColor: b.color + "20" }]}>
-                    <Text>{b.icon}</Text>
-                  </View>
-                  <View style={styles.rankInfo}>
-                    <Text style={styles.rankName}>{b.category}</Text>
-                    <View style={styles.rankBarBg}>
-                      <View style={[styles.rankBarFill, { width: `${b.percentage}%` as any, backgroundColor: b.color }]} />
-                    </View>
-                  </View>
-                  <Text style={styles.rankAmount}>₹{b.amount}</Text>
+          ) : (
+            <>
+              {/* Stacked bar "pie" */}
+              <View style={styles.chartCard}>
+                <Text style={styles.chartTitle}>Expense Breakdown</Text>
+                <View style={{ height: 20, flexDirection: "row", borderRadius: 10, overflow: "hidden", marginVertical: 16 }}>
+                  {breakdown.map((d) => (
+                    <View key={d.category} style={{ width: `${d.percentage}%` as any, backgroundColor: d.color }} />
+                  ))}
                 </View>
-              ))}
-          </View>
+                <View style={styles.legend}>
+                  {breakdown.map((b) => (
+                    <View key={b.category} style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: b.color }]} />
+                      <Text style={styles.legendLabel}>{b.category}</Text>
+                      <Text style={styles.legendPct}>{b.percentage}%</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Category Ranking */}
+              <View style={styles.chartCard}>
+                <Text style={styles.chartTitle}>Top Categories</Text>
+                {[...breakdown]
+                  .sort((a, b) => b.amount - a.amount)
+                  .map((b, i) => (
+                    <View key={b.category} style={styles.rankRow}>
+                      <Text style={styles.rankNum}>{i + 1}</Text>
+                      <View style={[styles.rankIcon, { backgroundColor: b.color + "20" }]}>
+                        <Text>{b.icon}</Text>
+                      </View>
+                      <View style={styles.rankInfo}>
+                        <Text style={styles.rankName}>{b.category}</Text>
+                        <View style={styles.rankBarBg}>
+                          <View style={[styles.rankBarFill, { width: `${b.percentage}%` as any, backgroundColor: b.color }]} />
+                        </View>
+                      </View>
+                      <Text style={styles.rankAmount}>{formatCurrency(b.amount, currency)}</Text>
+                    </View>
+                  ))}
+              </View>
+            </>
+          )}
         </>
       )}
 
       {activeTab === "monthly" && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Income vs Expense (6 Months)</Text>
-          <BarChart data={monthly} />
+          <BarChart data={monthly} currency={currency} />
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: Colors.income }]} />
@@ -185,36 +204,27 @@ export default function AnalyticsScreen() {
       {activeTab === "daily" && (
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Daily Spending This Month</Text>
-          <LineChart data={daily.map((d) => d.expense)} />
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
-            <Text style={styles.chartAxisLabel}>1</Text>
-            <Text style={styles.chartAxisLabel}>10</Text>
-            <Text style={styles.chartAxisLabel}>20</Text>
-            <Text style={styles.chartAxisLabel}>30</Text>
-          </View>
+          <DailyBarChart data={daily} currency={currency} />
         </View>
       )}
     </ScrollView>
   );
 }
 
-function PieChartSimple({ data }: { data: CategoryBreakdown[] }) {
-  const total = data.reduce((s, d) => s + d.amount, 0);
-  return (
-    <View style={{ height: 20, flexDirection: "row", borderRadius: 10, overflow: "hidden", marginVertical: 16 }}>
-      {data.map((d) => (
-        <View
-          key={d.category}
-          style={{ width: `${d.percentage}%` as any, backgroundColor: d.color }}
-        />
-      ))}
-    </View>
-  );
-}
-
-function BarChart({ data }: { data: MonthlyComparison[] }) {
-  const maxVal = Math.max(...data.flatMap((d) => [d.income, d.expense]));
+function BarChart({ data, currency }: { data: MonthlyComparison[]; currency: string }) {
+  const allVals = data.flatMap((d) => [d.income, d.expense]);
+  const maxVal = allVals.length > 0 ? Math.max(...allVals) : 0;
   const chartH = 140;
+
+  if (maxVal === 0 || data.length === 0) {
+    return (
+      <View style={{ alignItems: "center", justifyContent: "center", height: chartH + 24, marginTop: 16 }}>
+        <Feather name="bar-chart-2" size={32} color={Colors.border} />
+        <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 8 }}>No data for this period</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flexDirection: "row", alignItems: "flex-end", height: chartH + 24, gap: 8, marginTop: 16 }}>
       {data.map((d, i) => (
@@ -240,24 +250,74 @@ function BarChart({ data }: { data: MonthlyComparison[] }) {
   );
 }
 
-function LineChart({ data }: { data: number[] }) {
-  const max = Math.max(...data);
-  const chartH = 120;
-  const barW = (CHART_WIDTH - 32) / data.length;
+function DailyBarChart({ data, currency }: { data: DailyAnalytics[]; currency: string }) {
+  const expenses = data.map((d) => d.expense);
+  const maxVal = expenses.length > 0 ? Math.max(...expenses) : 0;
+  const chartH = 130;
+
+  if (maxVal === 0 || data.length === 0) {
+    return (
+      <View style={{ alignItems: "center", justifyContent: "center", height: chartH + 40, marginTop: 8 }}>
+        <Feather name="trending-up" size={32} color={Colors.border} />
+        <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 8 }}>No spending recorded this month</Text>
+      </View>
+    );
+  }
+
+  const symbol = getCurrencySymbol(currency);
+  const topVal = convertFromINR(maxVal, currency);
+  const midVal = convertFromINR(maxVal / 2, currency);
+  const topLabel = topVal >= 1000 ? `${symbol}${(topVal / 1000).toFixed(1)}k` : `${symbol}${Math.round(topVal)}`;
+  const midLabel = midVal >= 1000 ? `${symbol}${(midVal / 1000).toFixed(1)}k` : `${symbol}${Math.round(midVal)}`;
+
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-end", height: chartH, marginTop: 16, gap: 2 }}>
-      {data.map((v, i) => (
-        <View
-          key={i}
-          style={{
-            flex: 1,
-            height: Math.max((v / max) * chartH, 3),
-            backgroundColor: Colors.primary,
-            borderRadius: 2,
-            opacity: 0.6 + 0.4 * (v / max),
-          }}
-        />
-      ))}
+    <View style={{ marginTop: 12 }}>
+      {/* Y-axis labels */}
+      <View style={{ flexDirection: "row" }}>
+        <View style={{ width: 36, justifyContent: "space-between", height: chartH, alignItems: "flex-end", paddingRight: 6 }}>
+          <Text style={{ fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textSecondary }}>{topLabel}</Text>
+          <Text style={{ fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textSecondary }}>{midLabel}</Text>
+          <Text style={{ fontSize: 9, fontFamily: "Inter_400Regular", color: Colors.textSecondary }}>{symbol}0</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          {/* Reference lines */}
+          <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: chartH }}>
+            {[0, 0.5, 1].map((pct) => (
+              <View key={pct} style={{
+                position: "absolute",
+                top: pct * chartH,
+                left: 0,
+                right: 0,
+                height: 1,
+                backgroundColor: Colors.border,
+                opacity: 0.5,
+              }} />
+            ))}
+          </View>
+          {/* Bars */}
+          <View style={{ flexDirection: "row", alignItems: "flex-end", height: chartH, gap: 2 }}>
+            {expenses.map((v, i) => (
+              <View
+                key={i}
+                style={{
+                  flex: 1,
+                  height: Math.max((v / maxVal) * chartH, v > 0 ? 4 : 0),
+                  backgroundColor: v > 0 ? Colors.primary : "transparent",
+                  borderRadius: 3,
+                  opacity: v > 0 ? (0.55 + 0.45 * (v / maxVal)) : 1,
+                }}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+      {/* X-axis labels */}
+      <View style={{ flexDirection: "row", marginLeft: 36, marginTop: 6, justifyContent: "space-between" }}>
+        <Text style={styles.chartAxisLabel}>1</Text>
+        <Text style={styles.chartAxisLabel}>10</Text>
+        <Text style={styles.chartAxisLabel}>20</Text>
+        <Text style={styles.chartAxisLabel}>{expenses.length}</Text>
+      </View>
     </View>
   );
 }
@@ -277,7 +337,7 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
   summaryCard: { flex: 1, backgroundColor: Colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border, borderLeftWidth: 4 },
   summaryLabel: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
-  summaryValue: { fontFamily: "Inter_700Bold", fontSize: 22, marginTop: 4 },
+  summaryValue: { fontFamily: "Inter_700Bold", fontSize: 20, marginTop: 4 },
   summaryChange: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 4 },
   chartCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.border },
   chartTitle: { fontFamily: "Inter_700Bold", fontSize: 16, color: Colors.text },
@@ -293,6 +353,8 @@ const styles = StyleSheet.create({
   rankInfo: { flex: 1, gap: 4 },
   rankName: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.text },
   rankBarBg: { height: 6, backgroundColor: Colors.border, borderRadius: 3, overflow: "hidden" },
-  rankBarFill: { height: "100%", borderRadius: 3 },
+  rankBarFill: { height: "100%" as any, borderRadius: 3 },
   rankAmount: { fontFamily: "Inter_700Bold", fontSize: 13, color: Colors.text },
+  emptyCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 40, marginBottom: 16, borderWidth: 1, borderColor: Colors.border, alignItems: "center", gap: 12 },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
 });

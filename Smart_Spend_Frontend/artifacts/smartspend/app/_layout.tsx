@@ -7,9 +7,10 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router, Stack, useSegments } from "expo-router";
 import * as Font from "expo-font";
+import { Feather } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
-import { Platform } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -35,27 +36,25 @@ function AuthGuard() {
     const segment = segments[0] as string | undefined;
     const inProtected = segment === PROTECTED_SEGMENT;
     const inAuthScreen = !segment || AUTH_SCREENS.includes(segment);
-    
-    console.log("AuthGuard Debug:", { 
-      segment, 
-      inProtected, 
-      inAuthScreen, 
-      hasUser: !!user, 
+
+    console.log("AuthGuard Debug:", {
+      segment,
+      inProtected,
+      inAuthScreen,
+      hasUser: !!user,
       isEmailVerified,
-      userEmail: user?.email 
+      userEmail: user?.email,
     });
-    
+
     if (!user && inProtected) {
       console.log("AuthGuard: Redirecting to onboarding (no user)");
       router.replace("/onboarding");
     } else if (user && inAuthScreen) {
-      // Only redirect to dashboard if email is verified
       if (isEmailVerified) {
         console.log("AuthGuard: Redirecting to tabs (user verified)");
         router.replace("/(tabs)");
       } else {
         console.log("AuthGuard: User not verified, staying on current auth screen");
-        // Don't force redirect - let user stay on auth screens
       }
     } else if (user && inProtected && !isEmailVerified) {
       console.log("AuthGuard: Redirecting to verify-email (user not verified)");
@@ -95,10 +94,11 @@ function RootLayoutNav() {
         <Stack.Screen name="register"        options={SCREEN_TRANSITION} />
         <Stack.Screen name="forgot-password" options={SCREEN_TRANSITION} />
         <Stack.Screen name="reset-password"  options={SCREEN_TRANSITION} />
-        <Stack.Screen name="verify-email"     options={{ ...SCREEN_TRANSITION, headerShown: false }} />
+        <Stack.Screen name="verify-email"    options={{ ...SCREEN_TRANSITION, headerShown: false }} />
         <Stack.Screen name="(tabs)"          options={{ animation: "fade", animationDuration: 250 }} />
         <Stack.Screen name="add-transaction" options={{ ...MODAL_TRANSITION, presentation: "modal" }} />
         <Stack.Screen name="receipt-scanner" options={{ ...MODAL_TRANSITION, presentation: "modal" }} />
+        <Stack.Screen name="sms-scanner"     options={{ ...MODAL_TRANSITION, presentation: "modal" }} />
         <Stack.Screen name="categories"      options={SCREEN_TRANSITION} />
         <Stack.Screen name="budgets"         options={SCREEN_TRANSITION} />
         <Stack.Screen name="help"            options={SCREEN_TRANSITION} />
@@ -110,16 +110,24 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [fontsReady, setFontsReady] = useState(false);
+
   useEffect(() => {
-    // Load fonts in background — silently swallow any CDN timeout errors
     Font.loadAsync({
+      ...Feather.font,
       Inter_400Regular,
       Inter_500Medium,
       Inter_600SemiBold,
       Inter_700Bold,
-    }).catch(() => {});
-    SplashScreen.hideAsync().catch(() => {});
+    })
+      .catch(() => {})
+      .finally(() => {
+        setFontsReady(true);
+        SplashScreen.hideAsync().catch(() => {});
+      });
   }, []);
+
+  if (!fontsReady) return null;
 
   const isWeb = Platform.OS === "web";
 
@@ -139,7 +147,6 @@ export default function RootLayout() {
                       width: "100%",
                       alignSelf: "center",
                       overflow: "hidden",
-                      // Subtle phone-frame shadow on desktop
                       boxShadow: "0 0 60px rgba(0,0,0,0.6)",
                     } as any
                   : { flex: 1 }

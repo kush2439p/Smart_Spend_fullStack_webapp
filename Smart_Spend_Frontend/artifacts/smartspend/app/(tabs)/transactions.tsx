@@ -15,8 +15,10 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 import { transactionsApi, Transaction } from "@/services/api";
 import { MOCK_TRANSACTIONS } from "@/services/mockData";
+import { getCurrencySymbol, convertFromINR } from "@/utils/currency";
 
 const FILTERS = ["All", "Income", "Expense"] as const;
 const DATE_FILTERS = ["This Week", "This Month", "Last 3 Months", "Custom"] as const;
@@ -52,6 +54,8 @@ const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const { user } = useAuth();
+  const currency = user?.currency || "INR";
   const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
   const [filter, setFilter] = useState<typeof FILTERS[number]>("All");
   const [dateFilter, setDateFilter] = useState<typeof DATE_FILTERS[number]>("This Month");
@@ -151,7 +155,7 @@ export default function TransactionsScreen() {
           <View>
             <Text style={styles.groupHeader}>{group.title}</Text>
             {group.data.map((t) => (
-              <SwipeableTransaction key={t.id} transaction={t} onDelete={handleDelete} />
+              <SwipeableTransaction key={t.id} transaction={t} onDelete={handleDelete} currency={currency} />
             ))}
           </View>
         )}
@@ -168,8 +172,13 @@ export default function TransactionsScreen() {
   );
 }
 
-function SwipeableTransaction({ transaction: t, onDelete }: { transaction: Transaction; onDelete: (id: string) => void }) {
+function SwipeableTransaction({ transaction: t, onDelete, currency }: { transaction: Transaction; onDelete: (id: string) => void; currency: string }) {
   const src = SOURCE_LABELS[t.source] || SOURCE_LABELS.manual;
+  const symbol = getCurrencySymbol(currency);
+  const displayAmount = convertFromINR(Math.abs(t.amount), currency);
+  const amountStr = displayAmount >= 1000
+    ? displayAmount.toLocaleString("en-US", { maximumFractionDigits: 0 })
+    : displayAmount.toFixed(2);
   return (
     <Swipeable
       renderRightActions={() => (
@@ -192,7 +201,7 @@ function SwipeableTransaction({ transaction: t, onDelete }: { transaction: Trans
           <Text style={styles.txCat}>{t.category} · {new Date(t.date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</Text>
         </View>
         <Text style={[styles.txAmount, { color: t.type === "income" ? Colors.income : Colors.expense }]}>
-          {t.type === "income" ? "+" : "-"}₹{Math.abs(t.amount).toFixed(2)}
+          {t.type === "income" ? "+" : "-"}{symbol}{amountStr}
         </Text>
       </View>
     </Swipeable>
