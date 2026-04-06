@@ -85,6 +85,9 @@ export const authApi = {
     publicRequest<{ message: string }>("POST", "/auth/resend-verification", { email }),
 
   logout: () => request<void>("POST", "/auth/logout"),
+
+  /** Validate a stored token — returns the current user or throws if expired/invalid. */
+  me: () => request<User>("GET", "/auth/me"),
 };
 
 // ============================================================

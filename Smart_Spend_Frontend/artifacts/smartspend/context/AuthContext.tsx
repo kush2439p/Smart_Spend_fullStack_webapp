@@ -31,19 +31,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadStoredAuth = async () => {
     try {
       const storedToken = await AsyncStorage.getItem("auth_token");
-      const storedUser = await AsyncStorage.getItem("auth_user");
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsEmailVerified(parsedUser.emailVerified || false);
-      } else {
+      if (!storedToken) {
+        // No token stored — start fresh at login
         setToken(null);
         setUser(null);
         setIsEmailVerified(false);
+        return;
       }
+      // Validate token against backend — if expired/invalid this will throw
+      const freshUser = await authApi.me();
+      await AsyncStorage.setItem("auth_user", JSON.stringify(freshUser));
+      setToken(storedToken);
+      setUser(freshUser);
+      setIsEmailVerified(freshUser.emailVerified || false);
     } catch (error) {
-      console.error("Failed to load stored auth:", error);
+      // Token is invalid or backend unreachable — clear stored credentials
+      console.log("Session expired or invalid, clearing stored auth:", error);
+      await AsyncStorage.multiRemove(["auth_token", "auth_user", "pending_verify_email"]);
       setToken(null);
       setUser(null);
       setIsEmailVerified(false);

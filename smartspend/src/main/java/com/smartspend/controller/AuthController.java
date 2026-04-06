@@ -5,11 +5,14 @@ import com.smartspend.dto.LoginRequest;
 import com.smartspend.dto.RegisterRequest;
 import com.smartspend.dto.ForgotPasswordRequest;
 import com.smartspend.dto.ResetPasswordRequest;
+import com.smartspend.model.User;
+import com.smartspend.repository.UserRepository;
 import com.smartspend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -20,6 +23,23 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserRepository userRepository;
+
+    /** Validates the stored JWT and returns the current user — used by the frontend on startup. */
+    @GetMapping("/me")
+    public ResponseEntity<AuthResponse.UserDto> me() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        AuthResponse.UserDto dto = AuthResponse.UserDto.builder()
+                .id(user.getId() != null ? user.getId().toString() : null)
+                .name(user.getName())
+                .email(user.getEmail())
+                .currency(user.getCurrency())
+                .emailVerified(user.isEmailVerified())
+                .build();
+        return ResponseEntity.ok(dto);
+    }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
