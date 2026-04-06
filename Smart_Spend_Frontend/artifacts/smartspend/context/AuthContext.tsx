@@ -46,8 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsEmailVerified(freshUser.emailVerified || false);
     } catch (error) {
       // Token is invalid or backend unreachable — clear stored credentials
+      // Keep pending_verify_email so the resend button still works on the verify-email screen
       console.log("Session expired or invalid, clearing stored auth:", error);
-      await AsyncStorage.multiRemove(["auth_token", "auth_user", "pending_verify_email"]);
+      await AsyncStorage.multiRemove(["auth_token", "auth_user"]);
       setToken(null);
       setUser(null);
       setIsEmailVerified(false);

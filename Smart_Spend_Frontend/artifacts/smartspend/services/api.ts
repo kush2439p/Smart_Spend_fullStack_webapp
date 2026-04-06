@@ -39,7 +39,7 @@ async function request<T>(
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    throw new Error(error.error || error.message || `HTTP ${response.status}`);
   }
   return response.json();
 }
@@ -57,7 +57,7 @@ async function publicRequest<T>(
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    throw new Error(error.error || error.message || `HTTP ${response.status}`);
   }
   return response.json();
 }
