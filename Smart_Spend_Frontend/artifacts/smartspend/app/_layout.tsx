@@ -7,6 +7,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router, Stack, useSegments } from "expo-router";
 import * as Font from "expo-font";
+import { Feather } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
@@ -112,17 +113,20 @@ export default function RootLayout() {
   const [fontsReady, setFontsReady] = useState(false);
 
   useEffect(() => {
-    Font.loadAsync({
-      Inter_400Regular,
-      Inter_500Medium,
-      Inter_600SemiBold,
-      Inter_700Bold,
-    })
-      .catch(() => {})
-      .finally(() => {
-        setFontsReady(true);
-        SplashScreen.hideAsync().catch(() => {});
-      });
+    // Load each font family in its own independent call.
+    // Promise.allSettled never rejects — one failure won't prevent others from loading.
+    Promise.allSettled([
+      Font.loadAsync({ ...Feather.font }),
+      Font.loadAsync({
+        Inter_400Regular,
+        Inter_500Medium,
+        Inter_600SemiBold,
+        Inter_700Bold,
+      }),
+    ]).finally(() => {
+      setFontsReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    });
   }, []);
 
   if (!fontsReady) return null;
