@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Redirect, Tabs } from "expo-router";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { Colors } from "@/constants/colors";
@@ -11,43 +11,47 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
-  const isWeb = Platform.OS === "web";
 
   if (!isLoading && !user) {
     return <Redirect href="/onboarding" />;
   }
 
   const tabBg = isDark ? "#1C1B2E" : "#FFFFFF";
+  const borderColor = isDark ? "#2D2B45" : "#EBEBF5";
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: isDark ? "#888" : "#6B7280",
-        tabBarLabelStyle: { fontFamily: "Inter_500Medium", fontSize: 10, marginTop: -2 },
+        tabBarInactiveTintColor: isDark ? "#6B7280" : "#9CA3AF",
+        tabBarLabelStyle: {
+          fontFamily: "Inter_600SemiBold",
+          fontSize: 10,
+          marginTop: 1,
+        },
         tabBarStyle: {
           position: "absolute",
           backgroundColor: tabBg,
           borderTopWidth: 1,
-          borderTopColor: isDark ? "#2D2B45" : "#E5E7EB",
-          elevation: 12,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
+          borderTopColor: borderColor,
+          elevation: 20,
+          shadowColor: "#6C63FF",
+          shadowOffset: { width: 0, height: -4 },
           shadowOpacity: 0.08,
-          shadowRadius: 8,
-          ...(isWeb ? { height: 84, paddingBottom: 34 } : {}),
+          shadowRadius: 16,
+          ...(Platform.OS === "web" ? { height: 84, paddingBottom: 34 } : {}),
           ...(Platform.OS === "android" ? { paddingBottom: 8, height: 64 } : {}),
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
-              intensity={80}
+              intensity={90}
               tint={isDark ? "dark" : "light"}
-              style={[StyleSheet.absoluteFill, { borderTopWidth: 0.5, borderTopColor: isDark ? "#333" : "#E5E7EB" }]}
+              style={[StyleSheet.absoluteFill, { borderTopWidth: 0.5, borderTopColor: borderColor }]}
             />
           ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: tabBg, borderTopWidth: 1, borderTopColor: isDark ? "#2D2B45" : "#E5E7EB" }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: tabBg, borderTopWidth: 1, borderTopColor: borderColor }]} />
           ),
       }}
     >
@@ -55,14 +59,22 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name={focused ? "home" : "home-outline"} size={21} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="transactions"
         options={{
           title: "Transactions",
-          tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name={focused ? "receipt" : "receipt-outline"} size={20} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
@@ -71,7 +83,7 @@ export default function TabLayout() {
           title: "AI Chat",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.aiTabIcon, focused && styles.aiTabIconActive]}>
-              <Ionicons name="sparkles" size={20} color={focused ? "#fff" : color} />
+              <Ionicons name="sparkles" size={21} color={focused ? "#fff" : Colors.primary} />
             </View>
           ),
         }}
@@ -80,21 +92,33 @@ export default function TabLayout() {
         name="analytics"
         options={{
           title: "Analytics",
-          tabBarIcon: ({ color }) => <Feather name="bar-chart-2" size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name={focused ? "bar-chart" : "bar-chart-outline"} size={20} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name={focused ? "settings" : "settings-outline"} size={20} color={color} />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              <Ionicons name={focused ? "person" : "person-outline"} size={20} color={color} />
+            </View>
+          ),
         }}
       />
     </Tabs>
@@ -102,21 +126,34 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  aiTabIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#E8E7FF",
+  iconWrap: {
+    width: 36,
+    height: 30,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -8,
+    borderRadius: 10,
+  },
+  iconWrapActive: {
+    backgroundColor: Colors.primary + "18",
+  },
+  aiTabIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: Colors.primary + "20",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -10,
+    borderWidth: 2,
+    borderColor: Colors.primary + "30",
   },
   aiTabIconActive: {
     backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
 });
