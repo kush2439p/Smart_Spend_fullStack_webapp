@@ -174,12 +174,10 @@ export const receiptApi = {
     const fileName = isPdf ? "receipt.pdf" : "receipt.jpg";
 
     if (typeof window !== "undefined" && fileUri.startsWith("blob:")) {
-      // Web: fetch the blob and append it directly
       const blobRes = await fetch(fileUri);
       const blob = await blobRes.blob();
       formData.append("file", blob, fileName);
     } else {
-      // Native (React Native): use the URI object form
       formData.append("file", {
         uri: fileUri,
         type: mimeType,
@@ -187,19 +185,31 @@ export const receiptApi = {
       } as unknown as Blob);
     }
 
-    const response = await fetch(`${BASE_URL}/receipts/scan`, {
-      method: "POST",
-      headers: {
-        // Do NOT set Content-Type — browser must set it with multipart boundary
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: formData,
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || "Receipt scan failed");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 40000);
+
+    try {
+      const response = await fetch(`${BASE_URL}/receipts/scan`, {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || err.message || "Receipt scan failed");
+      }
+      return response.json();
+    } catch (e: any) {
+      if (e?.name === "AbortError") {
+        throw new Error("Scan timed out — AI is taking too long. Please try again.");
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeout);
     }
-    return response.json();
   },
 };
 

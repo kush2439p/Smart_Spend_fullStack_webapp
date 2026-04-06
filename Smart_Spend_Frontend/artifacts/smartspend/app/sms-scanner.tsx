@@ -118,16 +118,23 @@ export default function SmsScannerScreen() {
     }
     setPermState("requesting");
     try {
-      const results = await PermissionsAndroid.requestMultiple([
+      const permPromise = PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
         PermissionsAndroid.PERMISSIONS.READ_SMS,
       ]);
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+      const results = await Promise.race([permPromise, timeoutPromise]);
+      if (!results) {
+        // Timed out — fall back gracefully
+        setPermState("unavailable");
+        return;
+      }
       const granted =
         results["android.permission.RECEIVE_SMS"] === PermissionsAndroid.RESULTS.GRANTED &&
         results["android.permission.READ_SMS"] === PermissionsAndroid.RESULTS.GRANTED;
       setPermState(granted ? "granted" : "denied");
     } catch {
-      setPermState("denied");
+      setPermState("unavailable");
     }
   }, []);
 
@@ -351,6 +358,13 @@ export default function SmsScannerScreen() {
             <Text style={[styles.cardSub, { marginTop: 16, textAlign: "center" }]}>
               Requesting SMS permission…
             </Text>
+            <ManualInput
+              smsText={smsText}
+              onChangeText={(t) => { setSmsText(t); setParsed(null); }}
+              onClear={reset}
+              onParse={handleManualParse}
+              parsing={parsing}
+            />
           </View>
         );
       case "granted":

@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { analyticsApi, CategoryBreakdown, MonthlyComparison, DailyAnalytics } from "@/services/api";
@@ -50,7 +51,7 @@ export default function AnalyticsScreen() {
     }
   }, [selectedMonth, selectedYear]);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const totalExpense = breakdown.reduce((s, b) => s + b.amount, 0);

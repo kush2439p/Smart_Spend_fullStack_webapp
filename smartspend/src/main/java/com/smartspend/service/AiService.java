@@ -72,74 +72,61 @@ public class AiService {
         BigDecimal totalBalance = monthlyIncome.subtract(monthlyExpense);
 
        String fullPrompt = """
-        You are SmartSpend AI, a smart personal finance assistant that understands 
-        natural, casual, conversational language in English AND Hinglish.
+        You are SmartSpend AI — a friendly, smart personal finance assistant. 
+        You understand natural casual language, English AND Hinglish.
 
-        User info:
-        - Name: %s
-        - Currency: %s
-        - Today's date: %s
+        === USER PROFILE ===
+        Name: %s | Currency: %s | Today: %s
+        Monthly Income this month: Rs.%s | Monthly Expenses: Rs.%s | Net Balance: Rs.%s
 
-        User's expense categories: %s
-
-        User's recent transactions:
+        === USER CATEGORIES ===
         %s
 
-        YOUR JOB:
-        Understand what the user means even if they say it casually or indirectly.
+        === RECENT TRANSACTIONS (last 10) ===
+        %s
+
+        === YOUR CAPABILITIES ===
+        1. LOG EXPENSES/INCOME from casual mentions:
+           - "had lunch at mcdonalds for 250" → CREATE_TRANSACTION EXPENSE Food
+           - "grabbed coffee 80" → CREATE_TRANSACTION EXPENSE Food
+           - "paid 1200 for electricity" → CREATE_TRANSACTION EXPENSE Utilities
+           - "got salary 45000" → CREATE_TRANSACTION INCOME Salary
+           - "uber se gaya 150 laga" → CREATE_TRANSACTION EXPENSE Transport
+           - "client ne 5000 diye" → CREATE_TRANSACTION INCOME Freelance
+           - "bhai 200 ka pizza khaya" → CREATE_TRANSACTION EXPENSE Food
+
+        2. ANSWER FINANCIAL QUESTIONS using the data above:
+           - "how much did I spend this month" → use monthly expense data
+           - "am I overspending" → compare income vs expenses
+           - "what's my biggest expense" → look at recent transactions
+           - "how's my budget" → give honest assessment
+
+        3. HAVE NORMAL CONVERSATIONS:
+           - Greetings: reply warmly
+           - General advice: give practical financial tips
+           - Anything else: be helpful like a friend
+
+        === RULES ===
+        - action must be one of: CREATE_TRANSACTION, QUERY, NONE
+        - For CREATE_TRANSACTION always include the "transaction" object
+        - For QUERY or NONE, omit the "transaction" field entirely
+        - Reply must be friendly, short, conversational (1-3 sentences max)
+        - Pick best matching category from the user's list above
+        - Default date to today (%s) unless user specifies otherwise
+
+        Respond ONLY with valid JSON, no markdown fences:
+        {"reply":"...","action":"CREATE_TRANSACTION","transaction":{"amount":250,"type":"EXPENSE","title":"McDonald's Lunch","categoryName":"Food","date":"%s","note":""}}
         
-        Examples of EXPENSE messages you must understand:
-        - "had lunch at mcdonalds for 250"
-        - "grabbed coffee 80"
-        - "paid 1200 for electricity bill"
-        - "bought groceries spent around 600"
-        - "uber se gaya 150 laga"
-        - "movie ticket 350 tha"
-        - "petrol dala 500 ka"
-        - "zomato order kiya 400"
-        - "bhai 200 ka pizza khaya"
-        
-        Examples of INCOME messages you must understand:
-        - "got salary today 45000"
-        - "client ne 5000 diye"
-        - "received 2000 from freelance work"
-        - "aaj 1000 mila"
-        
-        Examples of QUERY (just answer, no transaction):
-        - "how much did i spend this month"
-        - "what is my biggest expense"
-        - "am i overspending"
-        - "kitna kharch hua"
-        
-        RULES:
-        1. If user mentions ANY purchase, payment, spending, eating, travelling, 
-           shopping, bill payment → action = CREATE_TRANSACTION, type = EXPENSE
-        2. If user mentions receiving money, salary, earning → action = CREATE_TRANSACTION, type = INCOME  
-        3. If user asks a question about their finances → action = QUERY
-        4. If just greeting or unrelated → action = NONE
-        5. Always pick the BEST matching category from the user's category list
-        6. If amount is unclear, make your best guess or ask in the reply
-        7. Be friendly, short, conversational in your reply — like a friend not a robot
-        8. Default date to today (%s) unless user specifies
-        
-        Respond ONLY with this JSON (no markdown, no code fences):
-        {
-          "reply": "friendly conversational response",
-          "action": "CREATE_TRANSACTION",
-          "transaction": {
-            "amount": 250,
-            "type": "EXPENSE",
-            "title": "McDonald's Lunch",
-            "categoryName": "Food",
-            "date": "%s",
-            "note": ""
-          }
-        }
-        
+        OR for queries/greetings:
+        {"reply":"...","action":"NONE"}
+
         User message: %s
         """.formatted(
         user.getName(), user.getCurrency(), LocalDate.now(),
-        categoryList,
+        monthlyIncome != null ? monthlyIncome.toPlainString() : "0",
+        monthlyExpense != null ? monthlyExpense.toPlainString() : "0",
+        totalBalance != null ? totalBalance.toPlainString() : "0",
+        categoryList.isEmpty() ? "Food, Transport, Shopping, Entertainment, Education, Utilities, Other" : categoryList,
         recentTxStr.isEmpty() ? "No recent transactions" : recentTxStr,
         LocalDate.now(),
         LocalDate.now(),
@@ -180,75 +167,94 @@ public class AiService {
     }
 
     private String generateFallbackResponse(String prompt) {
-        // Extract just the user message from the end of the prompt
         String userMessage = "";
         if (prompt.contains("User message:")) {
             userMessage = prompt.substring(prompt.lastIndexOf("User message:") + 13).trim();
         } else {
             userMessage = prompt;
         }
-        
+
+        // Extract financial context from prompt for smarter replies
+        String monthlyIncome = "0", monthlyExpense = "0";
+        try {
+            if (prompt.contains("Monthly Income this month:")) {
+                String inc = prompt.substring(prompt.indexOf("Monthly Income this month:") + 26).split("\\|")[0].replace("Rs.", "").trim();
+                monthlyIncome = inc;
+            }
+            if (prompt.contains("Monthly Expenses:")) {
+                String exp = prompt.substring(prompt.indexOf("Monthly Expenses:") + 17).split("\\|")[0].replace("Rs.", "").trim();
+                monthlyExpense = exp;
+            }
+        } catch (Exception ignored) {}
+
         String lower = userMessage.toLowerCase();
-        log.info("Processing AI message: {}", lower);
-        
-        // Parse expense addition with better patterns
-        if (lower.contains("add") && lower.contains("expense") && lower.matches(".*\\d+.*")) {
-            log.info("Matched expense pattern");
-            String amountStr = lower.replaceAll(".*?(\\d+(?:\\.\\d{1,2})?).*", "$1");
-            String category = "Other";
-            if (lower.contains("food") || lower.contains("lunch") || lower.contains("dinner")) category = "Food";
-            else if (lower.contains("transport") || lower.contains("uber") || lower.contains("taxi")) category = "Transport";
-            else if (lower.contains("shopping") || lower.contains("buy")) category = "Shopping";
-            else if (lower.contains("entertainment") || lower.contains("movie")) category = "Entertainment";
-            
-            String response = String.format("{\"reply\":\"Added expense of ₹%s for %s. Transaction saved successfully!\",\"action\":\"CREATE_TRANSACTION\",\"transaction\":{\"amount\":%s,\"type\":\"EXPENSE\",\"title\":\"%s expense\",\"categoryName\":\"%s\",\"date\":\"%s\",\"note\":\"\"}}", 
-                amountStr, category, amountStr, category, category, java.time.LocalDate.now());
-            log.info("Generated expense response: {}", response);
-            return response;
+
+        // ── Detect any transaction mention (amount present + spending/income words) ──
+        boolean hasAmount = lower.matches(".*\\b\\d+\\b.*");
+        boolean isExpense = lower.matches(".*(spent|paid|bought|grabbed|had|ate|ordered|went|taken|dala|kiya|khaya|laga|liya|kharcha|expense|bill|fee|ticket|uber|ola|zomato|swiggy|amazon|flipkart|petrol|diesel|coffee|lunch|dinner|pizza|chai|groceries|shopping|medical|doctor|electricity|water|rent|recharge|phone|movie|gym|metro|bus|rickshaw|auto).*");
+        boolean isIncome = lower.matches(".*(salary|received|got|earned|income|freelance|payment received|client|credited|mila|diye|diya|bonus|refund|cashback|dividend|interest|profit).*");
+
+        if (hasAmount && isExpense && !isIncome) {
+            String amountStr = lower.replaceAll(".*?\\b(\\d+(?:\\.\\d{1,2})?)\\b.*", "$1");
+            String category = detectCategory(lower);
+            String title = userMessage.length() > 40 ? userMessage.substring(0, 40) : userMessage;
+            return String.format(
+                "{\"reply\":\"Got it! Logged ₹%s as a %s expense. Every rupee counts! 💰\",\"action\":\"CREATE_TRANSACTION\",\"transaction\":{\"amount\":%s,\"type\":\"EXPENSE\",\"title\":\"%s\",\"categoryName\":\"%s\",\"date\":\"%s\",\"note\":\"\"}}",
+                amountStr, category, amountStr, title.replace("\"", "'"), category, java.time.LocalDate.now());
         }
-        
-        // Parse income addition
-        if (lower.contains("add") && lower.contains("income") && lower.matches(".*\\d+.*")) {
-            log.info("Matched income pattern");
-            String amountStr = lower.replaceAll(".*?(\\d+(?:\\.\\d{1,2})?).*", "$1");
-            String source = "Salary";
-            if (lower.contains("freelance")) source = "Freelance";
-            else if (lower.contains("business")) source = "Business";
-            else if (lower.contains("gift")) source = "Gift";
-            
-            String response = String.format("{\"reply\":\"Added income of ₹%s from %s. Transaction saved successfully!\",\"action\":\"CREATE_TRANSACTION\",\"transaction\":{\"amount\":%s,\"type\":\"INCOME\",\"title\":\"%s income\",\"categoryName\":\"Salary\",\"date\":\"%s\",\"note\":\"\"}}", 
-                amountStr, source, amountStr, source, java.time.LocalDate.now());
-            log.info("Generated income response: {}", response);
-            return response;
+
+        if (hasAmount && isIncome) {
+            String amountStr = lower.replaceAll(".*?\\b(\\d+(?:\\.\\d{1,2})?)\\b.*", "$1");
+            String catName = lower.contains("salary") ? "Salary" : lower.contains("freelance") ? "Freelance" : "Other Income";
+            String title = userMessage.length() > 40 ? userMessage.substring(0, 40) : userMessage;
+            return String.format(
+                "{\"reply\":\"Nice! Added ₹%s as income. Keep it up! 🎉\",\"action\":\"CREATE_TRANSACTION\",\"transaction\":{\"amount\":%s,\"type\":\"INCOME\",\"title\":\"%s\",\"categoryName\":\"%s\",\"date\":\"%s\",\"note\":\"\"}}",
+                amountStr, amountStr, title.replace("\"", "'"), catName, java.time.LocalDate.now());
         }
-        
-        // Greeting responses
-        if (lower.contains("hi") || lower.contains("hello") || lower.contains("hey")) {
-            log.info("Matched greeting pattern");
-            return "{\"reply\":\"Hello! I'm your SmartSpend AI assistant. I can help you track expenses, analyze spending patterns, and provide financial advice. Try asking me to add expenses like 'Add expense ₹50 food' or 'How's my spending this month?'\",\"action\":\"NONE\"}";
+
+        // ── Financial queries ──
+        if (lower.matches(".*(how much|kitna|balance|spent this month|spending|expenses this month|income this month|left|bacha|bachi).*")) {
+            return String.format(
+                "{\"reply\":\"This month you've earned Rs.%s and spent Rs.%s. Your net balance is Rs.%s. How's that looking for you?\",\"action\":\"QUERY\"}",
+                monthlyIncome, monthlyExpense,
+                (int)(Double.parseDouble(monthlyIncome.isEmpty() ? "0" : monthlyIncome) - Double.parseDouble(monthlyExpense.isEmpty() ? "0" : monthlyExpense)));
         }
-        
-        // Budget queries
-        if (lower.contains("budget") || lower.contains("spending")) {
-            log.info("Matched budget pattern");
-            return "{\"reply\":\"Based on your recent transactions, I can see your spending patterns. Your food expenses seem to be the highest category. Consider setting a monthly budget to better track your expenses!\",\"action\":\"BUDGET_ADVICE\"}";
+
+        if (lower.matches(".*(overspending|saving|save money|budget|plan|advice|tips|help me|guide).*")) {
+            double inc = Double.parseDouble(monthlyIncome.isEmpty() ? "0" : monthlyIncome);
+            double exp = Double.parseDouble(monthlyExpense.isEmpty() ? "0" : monthlyExpense);
+            if (inc > 0 && exp > inc * 0.8) {
+                return "{\"reply\":\"You're spending quite a lot relative to income this month! Try the 50/30/20 rule: 50% needs, 30% wants, 20% savings. I can help you track where it's going.\",\"action\":\"NONE\"}";
+            }
+            return "{\"reply\":\"Great question! The 50/30/20 rule works well — 50% for essentials, 30% for wants, 20% for savings. Tell me about any expense and I'll log it instantly!\",\"action\":\"NONE\"}";
         }
-        
-        // Planning queries
-        if (lower.contains("save") || lower.contains("plan") || lower.contains("advice")) {
-            log.info("Matched planning pattern");
-            return "{\"reply\":\"To improve your savings, I recommend the 50/30/20 rule: 50% for needs, 30% for wants, and 20% for savings. Track your expenses regularly and look for areas where you can cut back.\",\"action\":\"PLANNING\"}";
+
+        // ── Greetings ──
+        if (lower.matches(".*(hi|hello|hey|hii|helo|namaste|sup|what's up|howdy).*")) {
+            return String.format(
+                "{\"reply\":\"Hey there! 👋 I'm your SmartSpend AI. This month you've spent Rs.%s out of Rs.%s income. Just tell me about any expense or income and I'll log it for you!\",\"action\":\"NONE\"}",
+                monthlyExpense, monthlyIncome);
         }
-        
-        // Financial queries
-        if (lower.contains("how much") || lower.contains("balance") || lower.contains("money")) {
-            log.info("Matched financial pattern");
-            return "{\"reply\":\"I can help you understand your financial situation. Check your dashboard for your current balance and recent transactions. Would you like me to analyze your spending patterns?\",\"action\":\"QUERY\"}";
+
+        // ── Thanks / acknowledgements ──
+        if (lower.matches(".*(thank|thanks|great|awesome|nice|good|perfect|okay|ok|got it).*")) {
+            return "{\"reply\":\"Anytime! 😊 Keep logging your expenses and I'll help you stay on track. What else can I help with?\",\"action\":\"NONE\"}";
         }
-        
-        // Default response
-        log.info("Using default response pattern");
-        return "{\"reply\":\"I'm your SmartSpend AI assistant! I can help you track expenses, manage budgets, and provide financial advice. Try saying things like 'Add expense ₹100 food' or 'How's my spending this month?'\",\"action\":\"NONE\"}";
+
+        // ── Default ──
+        return "{\"reply\":\"I can log expenses, track income, and answer questions about your finances. Just say something like 'had lunch for 250' or 'how much did I spend this month?' 😊\",\"action\":\"NONE\"}";
+    }
+
+    private String detectCategory(String lower) {
+        if (lower.matches(".*(food|lunch|dinner|breakfast|restaurant|cafe|coffee|chai|pizza|burger|zomato|swiggy|hotel|snack|eat|khaya|khana).*")) return "Food";
+        if (lower.matches(".*(uber|ola|metro|bus|auto|rickshaw|taxi|cab|petrol|diesel|fuel|transport|travel|train|flight|gaya|aaya).*")) return "Transport";
+        if (lower.matches(".*(amazon|flipkart|shopping|clothes|shoes|shirt|dress|bag|bought|shopped|mall|shop).*")) return "Shopping";
+        if (lower.matches(".*(movie|netflix|spotify|game|entertainment|concert|event|fun|play).*")) return "Entertainment";
+        if (lower.matches(".*(doctor|medicine|hospital|medical|pharmacy|health|clinic|chemist).*")) return "Healthcare";
+        if (lower.matches(".*(electricity|water|gas|internet|wifi|phone|recharge|bill|utility).*")) return "Utilities";
+        if (lower.matches(".*(school|college|book|course|education|fees|tuition|study).*")) return "Education";
+        if (lower.matches(".*(hotel|flight|holiday|trip|vacation|tour|airbnb).*")) return "Travel";
+        return "Other";
     }
 
     private AiChatResponse parseGeminiResponse(String rawJson, User user) {
