@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { Colors } from "@/constants/colors";
 import { budgetsApi, categoriesApi, Budget, Category, CreateBudgetRequest } from "@/services/api";
 import { useQueryClient } from "@tanstack/react-query";
@@ -179,7 +179,7 @@ export default function BudgetsScreen() {
         {/* Alerts */}
         {overBudget.length > 0 && (
           <View style={styles.alertBox}>
-            <Ionicons name="warning" size={18} color={Colors.expense} />
+            <Feather name="alert-triangle" size={18} color={Colors.expense} />
             <Text style={styles.alertText}>
               {overBudget.length} budget{overBudget.length > 1 ? "s" : ""} over 80% — review your spending
             </Text>

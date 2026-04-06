@@ -7,7 +7,6 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router, Stack, useSegments } from "expo-router";
 import * as Font from "expo-font";
-import { Feather, Ionicons } from "@expo/vector-icons";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
@@ -114,8 +113,6 @@ export default function RootLayout() {
 
   useEffect(() => {
     Font.loadAsync({
-      ...Feather.font,
-      ...Ionicons.font,
       Inter_400Regular,
       Inter_500Medium,
       Inter_600SemiBold,

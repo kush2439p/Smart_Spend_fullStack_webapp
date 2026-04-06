@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Colors } from "@/constants/colors";
 import { aiApi, AiChatResponse, Transaction } from "@/services/api";
@@ -105,7 +105,7 @@ export default function AiScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.aiAvatar}>
-          <Ionicons name="sparkles" size={20} color="#fff" />
+          <Feather name="zap" size={20} color="#fff" />
         </View>
         <View>
           <Text style={styles.headerTitle}>AI Assistant</Text>
@@ -133,7 +133,7 @@ export default function AiScreen() {
           <View style={[styles.messageWrapper, msg.role === "user" ? styles.userWrapper : styles.assistantWrapper]}>
             {msg.role === "assistant" && (
               <View style={styles.smallAvatar}>
-                <Ionicons name="sparkles" size={12} color="#fff" />
+                <Feather name="zap" size={12} color="#fff" />
               </View>
             )}
             <View style={[styles.bubble, msg.role === "user" ? styles.userBubble : styles.assistantBubble]}>

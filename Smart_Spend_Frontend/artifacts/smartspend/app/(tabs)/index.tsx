@@ -14,7 +14,7 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -138,7 +138,7 @@ export default function DashboardScreen() {
         <Animated.View style={{ opacity: headerAnim }}>
           <Pressable style={styles.alertBanner} onPress={() => router.push("/budgets")}>
             <View style={styles.alertIconWrap}>
-              <Ionicons name="warning" size={16} color={Colors.expense} />
+              <Feather name="alert-triangle" size={16} color={Colors.expense} />
             </View>
             <Text style={styles.alertText}>
               {data.budgetAlerts[0].categoryName} is at {Math.round(data.budgetAlerts[0].percentage)}% of budget
