@@ -10,7 +10,7 @@ SmartSpend is a full-stack personal finance tracker with:
 
 - **Frontend**: Expo SDK 54, React Native, Expo Router, TypeScript, pnpm monorepo
 - **Backend**: Spring Boot 3.2, Java 19, Spring Security (JWT), Spring Data JPA
-- **Database**: PostgreSQL (Replit built-in)
+- **Database**: PostgreSQL
 - **Build tool**: Maven (backend), pnpm (frontend)
 
 ## Project Structure
@@ -40,7 +40,7 @@ SmartSpend is a full-stack personal finance tracker with:
 ## Configuration
 
 ### Backend (application.properties)
-- Uses `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` env vars (Replit PostgreSQL)
+- Uses `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` env vars for database connection
 - Server port: 8080
 - JWT auth enabled
 
@@ -50,7 +50,7 @@ SmartSpend is a full-stack personal finance tracker with:
 
 ## Switching to MySQL (when ready)
 
-Set these Replit env vars:
+Set these environment variables:
 - `MYSQL_URL=jdbc:mysql://host:3306/dbname`
 - `MYSQL_USER=your_user`
 - `MYSQL_PASSWORD=your_password`
@@ -73,10 +73,8 @@ Email sender: kushv619@gmail.com (Gmail SMTP)
 
 ## Key Notes
 
-- Original project used MySQL; switched to PostgreSQL for Replit compatibility
-- Database URL built from `PGHOST`, `PGPORT`, `PGDATABASE` env vars (avoids non-JDBC `DATABASE_URL` format)
-- Original backend port was 8081; changed to 8080 (required by Replit)
+- Database URL built from `PGHOST`, `PGPORT`, `PGDATABASE` env vars
 - Hibernate auto-creates/updates all tables on startup (`ddl-auto=update`)
-- The Expo app runs in web mode on Replit; QR code in Expo console lets users open on real device via Expo Go
+- The Expo app runs in web mode; QR code in Expo console lets users open on real device via Expo Go
 - `pending_verify_email` stored in AsyncStorage after registration — used by verify-email screen for resend
 - `verificationTokenExpiry` field on User — 24h expiry enforced on backend

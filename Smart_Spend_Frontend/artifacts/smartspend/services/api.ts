@@ -2,8 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 
 // ============================================================
-// BASE URL — used by the phone to reach your backend.
-// On Replit, the backend is proxied through the dev domain.
+// BASE URL — used by the client to reach the backend API.
 // ============================================================
 export const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
   ? `https://${process.env.EXPO_PUBLIC_DOMAIN}:8000/api`
