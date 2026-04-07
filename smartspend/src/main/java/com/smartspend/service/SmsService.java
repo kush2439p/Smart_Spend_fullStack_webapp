@@ -60,7 +60,8 @@ public class SmsService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         Map<String, Object> part = Map.of("text", prompt);
         Map<String, Object> content = Map.of("parts", List.of(part));
-        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 256);
+        Map<String, Object> thinkingConfig = Map.of("thinkingBudget", 0);
+        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 256, "thinkingConfig", thinkingConfig);
         Map<String, Object> body = Map.of("contents", List.of(content), "generationConfig", generationConfig);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);

@@ -94,7 +94,8 @@ public class ReceiptService {
         Map<String, Object> imageData = Map.of("mime_type", mimeType, "data", base64Image);
         Map<String, Object> imagePart = Map.of("inline_data", imageData);
         Map<String, Object> content = Map.of("parts", List.of(textPart, imagePart));
-        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 1024);
+        Map<String, Object> thinkingConfig = Map.of("thinkingBudget", 0);
+        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 1024, "thinkingConfig", thinkingConfig);
         Map<String, Object> body = Map.of("contents", List.of(content), "generationConfig", generationConfig);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
@@ -113,7 +114,8 @@ public class ReceiptService {
 
         Map<String, Object> part = Map.of("text", fullPrompt);
         Map<String, Object> content = Map.of("parts", List.of(part));
-        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 1024);
+        Map<String, Object> thinkingConfig = Map.of("thinkingBudget", 0);
+        Map<String, Object> generationConfig = Map.of("temperature", 0.1, "maxOutputTokens", 1024, "thinkingConfig", thinkingConfig);
         Map<String, Object> body = Map.of("contents", List.of(content), "generationConfig", generationConfig);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);

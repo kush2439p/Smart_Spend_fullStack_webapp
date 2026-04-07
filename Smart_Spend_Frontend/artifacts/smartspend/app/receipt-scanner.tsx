@@ -108,8 +108,8 @@ export default function ReceiptScannerScreen() {
     try {
       const compressed = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 1080 } }],
-        { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 700 } }],
+        { compress: 0.55, format: ImageManipulator.SaveFormat.JPEG }
       );
       return compressed.uri;
     } catch {
@@ -146,7 +146,7 @@ export default function ReceiptScannerScreen() {
   const capturePhoto = useCallback(async () => {
     if (!cameraRef.current) return;
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.6 });
       if (!photo?.uri) return;
       setImageUri(photo.uri);
       setFileMime("image/jpeg");
