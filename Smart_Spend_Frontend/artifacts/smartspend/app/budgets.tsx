@@ -10,6 +10,7 @@ import {
   Platform,
   TextInput,
   ActivityIndicator,
+  KeyboardAvoidingView,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -266,7 +267,10 @@ export default function BudgetsScreen() {
 
       {/* Add Budget Modal */}
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={() => setShowForm(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={[styles.modalContent, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Budget Goal</Text>
@@ -309,12 +313,15 @@ export default function BudgetsScreen() {
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Create Budget</Text>}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Overall Budget Modal */}
       <Modal visible={showOverallBudget} animationType="slide" transparent onRequestClose={() => setShowOverallBudget(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={[styles.modalContent, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Overall Monthly Budget</Text>
@@ -341,7 +348,7 @@ export default function BudgetsScreen() {
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Set Overall Budget</Text>}
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   Modal,
+  KeyboardAvoidingView,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -135,7 +136,10 @@ export default function CategoriesScreen() {
 
       {/* New Category Modal */}
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={() => setShowForm(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={[styles.modalContent, { paddingBottom: insets.bottom + 24 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Category</Text>
@@ -196,7 +200,7 @@ export default function CategoriesScreen() {
               <Text style={styles.saveBtnText}>{saving ? "Saving..." : "Create Category"}</Text>
             </Pressable>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
