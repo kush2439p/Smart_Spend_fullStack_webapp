@@ -27,7 +27,6 @@ import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { analyticsApi, CategoryBreakdown, MonthlyComparison, DailyAnalytics } from "@/services/api";
-import { MOCK_CATEGORY_BREAKDOWN, MOCK_MONTHLY, MOCK_DAILY } from "@/services/mockData";
 import { getCurrencySymbol, convertFromINR, formatCurrency } from "@/utils/currency";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -43,9 +42,10 @@ export default function AnalyticsScreen() {
   const { user } = useAuth();
   const currency = user?.currency || "INR";
 
-  const [breakdown, setBreakdown] = useState<CategoryBreakdown[]>(MOCK_CATEGORY_BREAKDOWN);
-  const [monthly, setMonthly] = useState<MonthlyComparison[]>(MOCK_MONTHLY);
-  const [daily, setDaily] = useState<DailyAnalytics[]>(MOCK_DAILY);
+  const [breakdown, setBreakdown] = useState<CategoryBreakdown[]>([]);
+  const [monthly, setMonthly] = useState<MonthlyComparison[]>([]);
+  const [daily, setDaily] = useState<DailyAnalytics[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "monthly" | "daily">("overview");
   const now = new Date();
@@ -63,9 +63,11 @@ export default function AnalyticsScreen() {
       setMonthly(m);
       setDaily(d);
     } catch {
-      setBreakdown(MOCK_CATEGORY_BREAKDOWN);
-      setMonthly(MOCK_MONTHLY);
-      setDaily(MOCK_DAILY);
+      setBreakdown([]);
+      setMonthly([]);
+      setDaily([]);
+    } finally {
+      setIsLoading(false);
     }
   }, [selectedMonth, selectedYear]);
 
@@ -74,6 +76,30 @@ export default function AnalyticsScreen() {
 
   const totalExpense = breakdown.reduce((s, b) => s + b.amount, 0);
   const totalIncome = daily.reduce((s, d) => s + d.income, 0);
+
+  if (isLoading) {
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, {
+          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0),
+          paddingBottom: tabBarHeight + 20,
+        }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.header, { marginBottom: 16 }]}>
+          <View style={{ width: 160, height: 24, backgroundColor: Colors.border, borderRadius: 8, opacity: 0.7 }} />
+          <View style={{ width: 140, height: 34, backgroundColor: Colors.card, borderRadius: 12, opacity: 0.7 }} />
+        </View>
+        <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+          <View style={[styles.summaryCard, { flex: 1, height: 80, backgroundColor: Colors.card, opacity: 0.5 }]} />
+          <View style={[styles.summaryCard, { flex: 1, height: 80, backgroundColor: Colors.card, opacity: 0.5 }]} />
+        </View>
+        <View style={{ height: 48, backgroundColor: Colors.card, borderRadius: 14, marginBottom: 16, opacity: 0.5 }} />
+        <View style={{ height: 240, backgroundColor: Colors.card, borderRadius: 20, opacity: 0.5 }} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

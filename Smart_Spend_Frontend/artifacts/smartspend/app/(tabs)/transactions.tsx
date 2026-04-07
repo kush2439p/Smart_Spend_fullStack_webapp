@@ -17,7 +17,6 @@ import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { transactionsApi, Transaction } from "@/services/api";
-import { MOCK_TRANSACTIONS } from "@/services/mockData";
 import { getCurrencySymbol, convertFromINR } from "@/utils/currency";
 
 const FILTERS = ["All", "Income", "Expense"] as const;
@@ -56,7 +55,8 @@ export default function TransactionsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { user } = useAuth();
   const currency = user?.currency || "INR";
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<typeof FILTERS[number]>("All");
   const [dateFilter, setDateFilter] = useState<typeof DATE_FILTERS[number]>("This Month");
   const [refreshing, setRefreshing] = useState(false);
@@ -67,7 +67,9 @@ export default function TransactionsScreen() {
       const res = await transactionsApi.getAll({ size: 50, type: filter !== "All" ? filter.toLowerCase() : undefined });
       setTransactions(res.content);
     } catch {
-      setTransactions(MOCK_TRANSACTIONS);
+      setTransactions([]);
+    } finally {
+      setIsLoading(false);
     }
   }, [filter]);
 
@@ -146,10 +148,25 @@ export default function TransactionsScreen() {
         contentContainerStyle={{ paddingBottom: tabBarHeight + 16, paddingHorizontal: 20 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Icon name="inbox" size={40} color={Colors.border} />
-            <Text style={styles.emptyText}>No transactions found</Text>
-          </View>
+          isLoading ? (
+            <View style={{ paddingTop: 8 }}>
+              {[0, 1, 2, 3, 4].map(i => (
+                <View key={i} style={[styles.txCard, { opacity: 0.5, marginTop: i === 0 ? 16 : 0 }]}>
+                  <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: Colors.border }} />
+                  <View style={{ flex: 1, gap: 8 }}>
+                    <View style={{ width: "60%", height: 14, borderRadius: 6, backgroundColor: Colors.border }} />
+                    <View style={{ width: "40%", height: 11, borderRadius: 6, backgroundColor: Colors.border }} />
+                  </View>
+                  <View style={{ width: 60, height: 14, borderRadius: 6, backgroundColor: Colors.border }} />
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Icon name="inbox" size={40} color={Colors.border} />
+              <Text style={styles.emptyText}>No transactions found</Text>
+            </View>
+          )
         }
         renderItem={({ item: group }) => (
           <View>

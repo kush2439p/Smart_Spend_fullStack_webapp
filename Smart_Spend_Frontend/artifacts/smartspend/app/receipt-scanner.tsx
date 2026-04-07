@@ -17,6 +17,7 @@ import Icon from "@/components/Icon";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Image } from "expo-image";
 import { Colors } from "@/constants/colors";
 import { receiptApi, transactionsApi } from "@/services/api";
@@ -102,10 +103,27 @@ export default function ReceiptScannerScreen() {
     setStage(Platform.OS === "web" ? "upload" : "camera");
   }, []);
 
+  const compressImage = useCallback(async (uri: string, mime: string): Promise<string> => {
+    if (mime === "application/pdf" || Platform.OS === "web") return uri;
+    try {
+      const compressed = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1080 } }],
+        { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      return compressed.uri;
+    } catch {
+      return uri;
+    }
+  }, []);
+
   const processReceipt = useCallback(async (uri: string, mime: string) => {
     setStage("processing");
+    const isCompressible = mime !== "application/pdf" && Platform.OS !== "web";
+    const uploadUri = await compressImage(uri, mime);
+    const uploadMime = isCompressible ? "image/jpeg" : mime;
     try {
-      const result = await receiptApi.scan(uri, mime);
+      const result = await receiptApi.scan(uploadUri, uploadMime);
       if (result.error) {
         setErrorMsg(result.error);
         setStage("review");

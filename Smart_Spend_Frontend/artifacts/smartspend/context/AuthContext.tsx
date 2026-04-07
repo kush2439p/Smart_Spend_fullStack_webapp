@@ -30,29 +30,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadStoredAuth = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem("auth_token");
-      if (!storedToken) {
+      const [storedToken, storedUser] = await AsyncStorage.multiGet(["auth_token", "auth_user"]);
+      const token = storedToken[1];
+      const userJson = storedUser[1];
+
+      if (!token) {
         // No token stored — start fresh at login
         setToken(null);
         setUser(null);
         setIsEmailVerified(false);
+        setIsLoading(false);
         return;
       }
-      // Validate token against backend — if expired/invalid this will throw
-      const freshUser = await authApi.me();
-      await AsyncStorage.setItem("auth_user", JSON.stringify(freshUser));
-      setToken(storedToken);
-      setUser(freshUser);
-      setIsEmailVerified(freshUser.emailVerified || false);
+
+      // Optimistic restore: show the app immediately using cached user
+      if (userJson) {
+        const cachedUser: User = JSON.parse(userJson);
+        setToken(token);
+        setUser(cachedUser);
+        setIsEmailVerified(cachedUser.emailVerified || false);
+        setIsLoading(false);
+      }
+
+      // Validate token with server in the background
+      try {
+        const freshUser = await authApi.me();
+        await AsyncStorage.setItem("auth_user", JSON.stringify(freshUser));
+        setToken(token);
+        setUser(freshUser);
+        setIsEmailVerified(freshUser.emailVerified || false);
+      } catch (validationError) {
+        // Token is invalid or expired — clear session and redirect to login
+        console.log("Background token validation failed, clearing auth:", validationError);
+        await AsyncStorage.multiRemove(["auth_token", "auth_user"]);
+        setToken(null);
+        setUser(null);
+        setIsEmailVerified(false);
+        // If not already loading (optimistic restore happened), navigate away
+        if (userJson) {
+          router.replace("/onboarding");
+        }
+      }
+
+      // If there was no cached user, we waited for the server — finish loading now
+      if (!userJson) {
+        setIsLoading(false);
+      }
     } catch (error) {
-      // Token is invalid or backend unreachable — clear stored credentials
-      // Keep pending_verify_email so the resend button still works on the verify-email screen
-      console.log("Session expired or invalid, clearing stored auth:", error);
+      console.log("Failed to read stored auth:", error);
       await AsyncStorage.multiRemove(["auth_token", "auth_user"]);
       setToken(null);
       setUser(null);
       setIsEmailVerified(false);
-    } finally {
       setIsLoading(false);
     }
   };

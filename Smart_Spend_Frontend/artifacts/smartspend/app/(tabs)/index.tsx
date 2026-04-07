@@ -19,7 +19,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { dashboardApi, DashboardSummary, Transaction } from "@/services/api";
-import { MOCK_DASHBOARD } from "@/services/mockData";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrencySymbol, convertFromINR } from "@/utils/currency";
 
@@ -51,10 +50,10 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  const { data: data = MOCK_DASHBOARD, refetch, isLoading } = useQuery({
+  const { data, refetch, isLoading } = useQuery({
     queryKey: ['dashboardSummary'],
-    queryFn: () => dashboardApi.getSummary().catch(() => MOCK_DASHBOARD),
-    staleTime: 30000,
+    queryFn: () => dashboardApi.getSummary(),
+    staleTime: 120000,
   });
   
   const [refreshing, setRefreshing] = useState(false);
@@ -82,11 +81,16 @@ export default function DashboardScreen() {
     ]).start();
   }, []);
 
-  // Refresh dashboard data when screen becomes focused
+  // Only refetch on focus if data is stale (staleTime = 2 min)
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch])
+      const state = queryClient.getQueryState(['dashboardSummary']);
+      const updatedAt = state?.dataUpdatedAt ?? 0;
+      const isStale = Date.now() - updatedAt > 120000;
+      if (isStale) {
+        refetch();
+      }
+    }, [refetch, queryClient])
   );
 
   const onRefresh = async () => { 
@@ -102,9 +106,41 @@ export default function DashboardScreen() {
     return "Good Evening";
   };
 
-  const hasBudgetAlert = data.budgetAlerts?.length > 0;
-  const notifications = getRealNotifications(data.budgetAlerts || []);
+  const hasBudgetAlert = !isLoading && (data?.budgetAlerts?.length ?? 0) > 0;
+  const notifications = getRealNotifications(data?.budgetAlerts || []);
   const unreadCount = notifications.length;
+
+  if (isLoading) {
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, {
+          paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0),
+          paddingBottom: tabBarHeight + 20,
+        }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <View>
+            <View style={[styles.skeletonLine, { width: 180, height: 22, marginBottom: 6 }]} />
+            <View style={[styles.skeletonLine, { width: 130, height: 14 }]} />
+          </View>
+          <View style={[styles.skeletonLine, { width: 42, height: 42, borderRadius: 14 }]} />
+        </View>
+        <View style={[styles.skeletonCard, { height: 164, marginBottom: 24 }]} />
+        <View style={[styles.skeletonLine, { width: 120, height: 16, marginBottom: 12 }]} />
+        <View style={{ flexDirection: "row", gap: 12, marginBottom: 12 }}>
+          {[0, 1, 2, 3].map(i => (
+            <View key={i} style={[styles.skeletonLine, { flex: 1, height: 72, borderRadius: 16 }]} />
+          ))}
+        </View>
+        <View style={[styles.skeletonLine, { width: 150, height: 16, marginBottom: 12 }]} />
+        {[0, 1, 2, 3].map(i => (
+          <View key={i} style={[styles.skeletonCard, { height: 64, marginBottom: 10 }]} />
+        ))}
+      </ScrollView>
+    );
+  }
 
   return (
     <>
@@ -134,7 +170,7 @@ export default function DashboardScreen() {
       </Animated.View>
 
       {/* ── Budget Alert Banner ── */}
-      {hasBudgetAlert && (
+      {hasBudgetAlert && data && (
         <Animated.View style={{ opacity: headerAnim }}>
           <Pressable style={styles.alertBanner} onPress={() => router.push("/budgets")}>
             <View style={styles.alertIconWrap}>
@@ -161,7 +197,7 @@ export default function DashboardScreen() {
             </View>
           </View>
           <Text style={styles.balanceAmount}>
-            {currencySymbol}{convertFromINR(data.totalBalance ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 2 })}
+            {currencySymbol}{convertFromINR(data?.totalBalance ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 2 })}
           </Text>
           <View style={styles.balanceDivider} />
           <View style={styles.balanceRow}>
@@ -172,7 +208,7 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.balStatLabel}>Income</Text>
                 <Text style={[styles.balStatValue, { color: Colors.income }]}>
-                  +{currencySymbol}{convertFromINR(data.totalIncome ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                  +{currencySymbol}{convertFromINR(data?.totalIncome ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </Text>
               </View>
             </View>
@@ -184,7 +220,7 @@ export default function DashboardScreen() {
               <View>
                 <Text style={styles.balStatLabel}>Expenses</Text>
                 <Text style={[styles.balStatValue, { color: Colors.expense }]}>
-                  -{currencySymbol}{convertFromINR(data.totalExpense ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                  -{currencySymbol}{convertFromINR(data?.totalExpense ?? 0, user?.currency).toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </Text>
               </View>
             </View>
@@ -210,7 +246,7 @@ export default function DashboardScreen() {
       </Animated.View>
 
       {/* ── Spending Trend ── */}
-      {data.spendingTrend?.length > 0 && (
+      {(data?.spendingTrend?.length ?? 0) > 0 && (
         <Animated.View style={[styles.trendCard, { opacity: actionsAnim }]}>
           <View style={styles.trendHeader}>
             <Text style={styles.sectionTitle}>7-Day Trend</Text>
@@ -219,7 +255,7 @@ export default function DashboardScreen() {
               <Text style={styles.trendBadgeText}>This Week</Text>
             </View>
           </View>
-          <MiniChart data={data.spendingTrend} />
+          <MiniChart data={data?.spendingTrend ?? []} />
         </Animated.View>
       )}
 
@@ -231,7 +267,7 @@ export default function DashboardScreen() {
               <Text style={styles.sectionTitle}>Budget Spotlight</Text>
               <View style={styles.seeAllChip}><Text style={styles.seeAllText}>See All</Text></View>
             </View>
-            {data.budgetAlerts.slice(0, 2).map((b, i) => (
+            {(data?.budgetAlerts ?? []).slice(0, 2).map((b, i) => (
               <View key={i} style={[styles.budgetItem, i > 0 && { marginTop: 12 }]}>
                 <View style={styles.budgetItemRow}>
                   <Text style={styles.budgetTitle}>{b.categoryName}</Text>
@@ -260,7 +296,7 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
         <View style={styles.txList}>
-          {data.recentTransactions.map((t, i) => (
+          {(data?.recentTransactions ?? []).map((t, i) => (
             <TransactionRow key={t.id} transaction={t} index={i} currencySymbol={currencySymbol} currency={user?.currency || "INR"} />
           ))}
         </View>
@@ -431,6 +467,8 @@ function NotificationModal({ visible, onClose, insets, notifications }: { visibl
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingHorizontal: 20 },
+  skeletonLine: { backgroundColor: Colors.border, borderRadius: 8, opacity: 0.7 },
+  skeletonCard: { backgroundColor: Colors.card, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, opacity: 0.7 },
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, marginTop: 8 },
   greeting: { fontFamily: "Inter_700Bold", fontSize: 22, color: Colors.text },
