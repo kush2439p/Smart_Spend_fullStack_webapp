@@ -26,6 +26,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -47,8 +48,9 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     Keyboard.dismiss();
+    setError(null);
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields");
+      setError("Please fill in your email and password.");
       return;
     }
     setLoading(true);
@@ -59,20 +61,9 @@ export default function LoginScreen() {
       const isNotVerified = msg.toLowerCase().includes("verify");
 
       if (isNotVerified) {
-        Alert.alert(
-          "Email Not Verified",
-          "Please verify your email before logging in.",
-          [
-            { text: "Resend Email", onPress: () => handleResendVerification(email.trim().toLowerCase()) },
-            {
-              text: "Check Email Screen",
-              onPress: () => router.push({ pathname: "/verify-email", params: { email: email.trim().toLowerCase() } }),
-            },
-            { text: "Cancel", style: "cancel" },
-          ]
-        );
+        setError("Your email isn't verified yet. Use the button below to resend the verification email.");
       } else {
-        Alert.alert("Login Failed", msg);
+        setError(msg || "Incorrect email or password. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -138,6 +129,30 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
+          {error ? (
+            <View style={styles.errorBox}>
+              <Icon name="alert-circle" size={16} color="#D32F2F" style={{ marginRight: 8, flexShrink: 0 }} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {error?.includes("verified") ? (
+            <View style={styles.verifyRow}>
+              <Pressable
+                style={styles.resendBtn}
+                onPress={() => handleResendVerification(email.trim().toLowerCase())}
+              >
+                <Text style={styles.resendBtnText}>Resend Verification Email</Text>
+              </Pressable>
+              <Pressable
+                style={styles.checkEmailBtn}
+                onPress={() => router.push({ pathname: "/verify-email", params: { email: email.trim().toLowerCase() } })}
+              >
+                <Text style={styles.checkEmailBtnText}>Check Email Screen</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <Pressable
             style={({ pressed }) => [styles.loginBtn, { opacity: pressed || loading ? 0.85 : 1 }]}
             onPress={handleLogin}
@@ -202,4 +217,40 @@ const styles = StyleSheet.create({
   registerRow: { flexDirection: "row", justifyContent: "center", marginTop: 36 },
   registerPrompt: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
   registerLink: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.primary },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFEBEE",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FFCDD2",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  errorText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: "#C62828",
+    flex: 1,
+    lineHeight: 18,
+  },
+  verifyRow: { gap: 10 },
+  resendBtn: {
+    backgroundColor: "#FFF3E0",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FFE0B2",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  resendBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#E65100" },
+  checkEmailBtn: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  checkEmailBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.primary },
 });
