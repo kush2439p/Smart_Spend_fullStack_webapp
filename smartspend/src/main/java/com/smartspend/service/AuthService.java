@@ -209,7 +209,12 @@ public class AuthService {
         user.setVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
         userRepository.save(user);
 
-        emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
+        try {
+            emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
+        } catch (Exception e) {
+            log.error("Failed to resend verification email to {}: {}", user.getEmail(), e.getMessage());
+            throw new RuntimeException("Could not send verification email. Please check your email address or try again in a moment.");
+        }
         log.info("Verification email resent for user: {}", email);
     }
 }

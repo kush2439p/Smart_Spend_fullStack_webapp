@@ -6,7 +6,6 @@ import {
   Pressable,
   ActivityIndicator,
   Animated,
-  Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +30,7 @@ export default function VerifyEmailScreen() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   // Fade in
@@ -77,8 +77,9 @@ export default function VerifyEmailScreen() {
   }, [resendCooldown]);
 
   const handleResend = async () => {
+    setResendError(null);
     if (!resolvedEmail) {
-      Alert.alert("Error", "Email address not found. Please go back and register again.");
+      setResendError("Email address not found. Please go back and register again.");
       return;
     }
     setResendLoading(true);
@@ -89,10 +90,9 @@ export default function VerifyEmailScreen() {
     } catch (e: any) {
       const msg = e?.message || "Failed to resend verification email";
       if (msg.toLowerCase().includes("already verified")) {
-        Alert.alert("Already Verified", "Your account is already verified. Please login.");
         router.replace("/login");
       } else {
-        Alert.alert("Error", msg);
+        setResendError(msg);
       }
     } finally {
       setResendLoading(false);
@@ -161,6 +161,13 @@ export default function VerifyEmailScreen() {
           </Pressable>
         )}
 
+        {resendError ? (
+          <View style={styles.errorBox}>
+            <Icon name="alert-circle" size={15} color="#C62828" style={{ marginRight: 8 }} />
+            <Text style={styles.errorText}>{resendError}</Text>
+          </View>
+        ) : null}
+
         {resendSent && (
           <Text style={styles.successNote}>New verification email sent! Check your inbox.</Text>
         )}
@@ -211,6 +218,13 @@ export default function VerifyEmailScreen() {
           </Text>
         )}
       </Pressable>
+
+      {resendError ? (
+        <View style={styles.errorBox}>
+          <Icon name="alert-circle" size={15} color="#C62828" style={{ marginRight: 8 }} />
+          <Text style={styles.errorText}>{resendError}</Text>
+        </View>
+      ) : null}
 
       <Pressable style={styles.secondaryBtn} onPress={() => router.replace("/login")}>
         <Text style={styles.secondaryBtnText}>← Back to Login</Text>
@@ -317,5 +331,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     textDecorationLine: "underline",
+  },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFEBEE",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FFCDD2",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    width: "100%",
+    marginBottom: 12,
+  },
+  errorText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: "#C62828",
+    flex: 1,
+    lineHeight: 18,
   },
 });
