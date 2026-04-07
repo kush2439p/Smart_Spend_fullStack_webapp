@@ -392,6 +392,7 @@ export default function ReceiptScannerScreen() {
           </View>
 
           <ScrollView
+            style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={[styles.reviewContent, { paddingBottom: insets.bottom + 120 }]}
