@@ -25,13 +25,13 @@ args = "Backend API"
 name = "Start application"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd Smart_Spend_Frontend && PORT=5000 pnpm --filter @workspace/smartspend run dev"
 waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [[workflows.workflow]]
 name = "Backend API"
@@ -48,10 +48,6 @@ waitForPort = 8000
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3001
 
 [[ports]]
 localPort = 8000
