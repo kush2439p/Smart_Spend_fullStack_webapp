@@ -129,12 +129,20 @@ export default function ReceiptScannerScreen() {
         setStage("review");
         return;
       }
+      const today = new Date().toISOString().split("T")[0];
+      const receiptDate = result.date || null;
+
       setMerchant(result.merchant || "");
       setAmount(result.amount ? String(result.amount) : "");
-      setDate(result.date || new Date().toISOString().split("T")[0]);
+      // Always use today's date so the transaction lands in the current month's analytics.
+      // If the receipt has a different printed date, it's noted in the notes field.
+      setDate(today);
       setCategory(result.category || result.suggestedCategory || "Other");
       setTxType((result.type as "expense" | "income") || "expense");
-      setNotes(result.notes || "");
+      // Append receipt date to notes only if it differs from today
+      const baseNotes = result.notes || "";
+      const dateSuffix = (receiptDate && receiptDate !== today) ? `Receipt date: ${receiptDate}` : "";
+      setNotes([baseNotes, dateSuffix].filter(Boolean).join(" | "));
       setItems(result.items || []);
       setCurrency(result.currency || "INR");
     } catch (e: any) {

@@ -172,7 +172,21 @@ export default function AnalyticsScreen() {
           {breakdown.length === 0 ? (
             <View style={styles.emptyCard}>
               <Icon name="pie-chart" size={36} color={Colors.border} />
-              <Text style={styles.emptyText}>No expense data this month</Text>
+              <Text style={styles.emptyTitle}>No expenses recorded</Text>
+              <Text style={styles.emptyText}>
+                No expense transactions found for {MONTHS[selectedMonth]} {selectedYear}.
+              </Text>
+              {totalIncome > 0 ? (
+                <View style={styles.emptyIncomeHint}>
+                  <Icon name="trending-up" size={14} color={Colors.income} />
+                  <Text style={styles.emptyIncomeText}>
+                    {formatCurrency(totalIncome, currency)} income recorded this month — switch to the Daily tab to see it.
+                  </Text>
+                </View>
+              ) : null}
+              <Text style={styles.emptyHint}>
+                Scanned a receipt? Use the arrows above to check previous months — receipts are saved with today's date going forward.
+              </Text>
             </View>
           ) : (
             <>
@@ -488,6 +502,10 @@ const styles = StyleSheet.create({
   rankBarBg: { height: 6, backgroundColor: Colors.border, borderRadius: 3, overflow: "hidden" },
   rankBarFill: { height: "100%" as any, borderRadius: 3 },
   rankAmount: { fontFamily: "Inter_700Bold", fontSize: 12, color: Colors.text },
-  emptyCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 40, marginBottom: 16, borderWidth: 1, borderColor: Colors.border, alignItems: "center", gap: 12 },
-  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
+  emptyCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 32, marginBottom: 16, borderWidth: 1, borderColor: Colors.border, alignItems: "center", gap: 10 },
+  emptyTitle: { fontFamily: "Inter_600SemiBold", fontSize: 16, color: Colors.text, textAlign: "center" },
+  emptyText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 20 },
+  emptyIncomeHint: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.income + "15", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: Colors.income + "40" },
+  emptyIncomeText: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.income, flex: 1, lineHeight: 16 },
+  emptyHint: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", lineHeight: 18, paddingHorizontal: 8, marginTop: 4 },
 });
