@@ -43,7 +43,7 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd smartspend && mvn spring-boot:run"
-waitForPort = 8080
+waitForPort = 8000
 
 [[ports]]
 localPort = 5000
@@ -52,6 +52,10 @@ externalPort = 80
 [[ports]]
 localPort = 5001
 externalPort = 3001
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
 
 [[ports]]
 localPort = 8080

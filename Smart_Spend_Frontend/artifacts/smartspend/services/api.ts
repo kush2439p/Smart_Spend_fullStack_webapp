@@ -6,8 +6,8 @@ import * as Linking from "expo-linking";
 // On Replit, the backend is proxied through the dev domain.
 // ============================================================
 export const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}:8080/api`
-  : "http://localhost:8080/api";
+  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}:8000/api`
+  : "http://localhost:8000/api";
 
 // ============================================================
 // HTTP Helper
