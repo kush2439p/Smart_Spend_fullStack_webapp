@@ -100,3 +100,7 @@ MYSQL_URL = "jdbc:mysql://mysql-2f284d93-kushv619-cf1e.a.aivencloud.com:23575/de
 MYSQL_USER = "avnadmin"
 DB_DRIVER = "com.mysql.cj.jdbc.Driver"
 HIBERNATE_DIALECT = "org.hibernate.dialect.MySQLDialect"
+MAIL_USERNAME = "kushv619@gmail.com"
+JWT_SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+MAIL_PASSWORD = "mvespeaiwseozkye"
+DB_PASSWORD = "AVNS_l_92RnqYsdMit1U9rxZ"
