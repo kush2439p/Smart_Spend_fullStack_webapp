@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { Redirect, Tabs } from "expo-router";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { Colors } from "@/constants/colors";
@@ -61,7 +61,7 @@ export default function TabLayout() {
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-              <Feather name="home" size={20} color={color} />
+              <Icon name="home" size={20} color={color} />
             </View>
           ),
         }}
@@ -72,7 +72,7 @@ export default function TabLayout() {
           title: "Transactions",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-              <Feather name="list" size={20} color={color} />
+              <Icon name="list" size={20} color={color} />
             </View>
           ),
         }}
@@ -83,7 +83,7 @@ export default function TabLayout() {
           title: "AI Chat",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.aiTabIcon, focused && styles.aiTabIconActive]}>
-              <Feather name="zap" size={19} color={focused ? "#fff" : Colors.primary} />
+              <Icon name="zap" size={19} color={focused ? "#fff" : Colors.primary} />
             </View>
           ),
         }}
@@ -94,7 +94,7 @@ export default function TabLayout() {
           title: "Analytics",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-              <Feather name="bar-chart-2" size={20} color={color} />
+              <Icon name="bar-chart-2" size={20} color={color} />
             </View>
           ),
         }}
@@ -105,7 +105,7 @@ export default function TabLayout() {
           title: "Settings",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-              <Feather name="settings" size={19} color={color} />
+              <Icon name="settings" size={19} color={color} />
             </View>
           ),
         }}
@@ -116,7 +116,7 @@ export default function TabLayout() {
           title: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
-              <Feather name="user" size={20} color={color} />
+              <Icon name="user" size={20} color={color} />
             </View>
           ),
         }}

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { authApi } from "@/services/api";
 
@@ -73,7 +73,7 @@ export default function ResetPasswordScreen() {
     return (
       <Animated.View style={[styles.container, styles.centered, { opacity: fadeAnim, paddingHorizontal: 28 }]}>
         <View style={[styles.iconCircle, { borderColor: Colors.success, backgroundColor: Colors.success + "20" }]}>
-          <Feather name="check-circle" size={48} color={Colors.success} />
+          <Icon name="check-circle" size={48} color={Colors.success} />
         </View>
         <Text style={styles.heading}>Password Reset!</Text>
         <Text style={styles.subtitle}>
@@ -101,12 +101,12 @@ export default function ResetPasswordScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/login")}>
-          <Feather name="arrow-left" size={24} color={Colors.text} />
+          <Icon name="arrow-left" size={24} color={Colors.text} />
         </Pressable>
 
         <View style={styles.iconContainer}>
           <View style={styles.iconCircle}>
-            <Feather name="unlock" size={40} color={Colors.primary} />
+            <Icon name="unlock" size={40} color={Colors.primary} />
           </View>
         </View>
 
@@ -117,7 +117,7 @@ export default function ResetPasswordScreen() {
           {/* Error banner */}
           {!!errorMsg && (
             <View style={styles.errorBanner}>
-              <Feather name="alert-circle" size={16} color={Colors.error} style={{ marginRight: 8 }} />
+              <Icon name="alert-circle" size={16} color={Colors.error} style={{ marginRight: 8 }} />
               <Text style={styles.errorBannerText}>{errorMsg}</Text>
             </View>
           )}
@@ -126,7 +126,7 @@ export default function ResetPasswordScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Reset Token</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="key" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="key" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Paste your reset token here"
@@ -144,7 +144,7 @@ export default function ResetPasswordScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>New Password</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Min. 6 characters"
@@ -154,7 +154,7 @@ export default function ResetPasswordScreen() {
                 secureTextEntry={!showPassword}
               />
               <Pressable style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
-                <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+                <Icon name={showPassword ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
           </View>
@@ -163,7 +163,7 @@ export default function ResetPasswordScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Repeat new password"
@@ -173,7 +173,7 @@ export default function ResetPasswordScreen() {
                 secureTextEntry={!showConfirmPassword}
               />
               <Pressable style={styles.eyeIcon} onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                <Feather name={showConfirmPassword ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+                <Icon name={showConfirmPassword ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
           </View>

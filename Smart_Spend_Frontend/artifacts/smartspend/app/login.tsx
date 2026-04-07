@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import Colors from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { authApi } from "@/services/api";
@@ -93,7 +93,7 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/onboarding")}>
-          <Feather name="arrow-left" size={24} color={Colors.text} />
+          <Icon name="arrow-left" size={24} color={Colors.text} />
         </Pressable>
 
         <Text style={styles.heading}>Welcome Back! 👋</Text>
@@ -103,7 +103,7 @@ export default function LoginScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Email Address</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="john@example.com"
@@ -120,7 +120,7 @@ export default function LoginScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="••••••••"
@@ -130,7 +130,7 @@ export default function LoginScreen() {
                 secureTextEntry={!showPass}
               />
               <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-                <Feather name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+                <Icon name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
             <Pressable style={styles.forgotBtn} onPress={() => router.push("/forgot-password")}>

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { budgetsApi, categoriesApi, Budget, Category, CreateBudgetRequest } from "@/services/api";
 import { useQueryClient } from "@tanstack/react-query";
@@ -144,21 +144,21 @@ export default function BudgetsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={Colors.text} />
+          <Icon name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Budget Planner</Text>
         <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
-          <Feather name="plus" size={20} color={Colors.primary} />
+          <Icon name="plus" size={20} color={Colors.primary} />
         </Pressable>
       </View>
 
       {/* Month Selector */}
       <View style={styles.monthRow}>
-        <Feather name="chevron-left" size={20} color={Colors.text} />
+        <Icon name="chevron-left" size={20} color={Colors.text} />
         <Text style={styles.monthText}>
           {now.toLocaleString("default", { month: "long", year: "numeric" })}
         </Text>
-        <Feather name="chevron-right" size={20} color={Colors.text} />
+        <Icon name="chevron-right" size={20} color={Colors.text} />
       </View>
 
       <ScrollView
@@ -179,7 +179,7 @@ export default function BudgetsScreen() {
         {/* Alerts */}
         {overBudget.length > 0 && (
           <View style={styles.alertBox}>
-            <Feather name="alert-triangle" size={18} color={Colors.expense} />
+            <Icon name="alert-triangle" size={18} color={Colors.expense} />
             <Text style={styles.alertText}>
               {overBudget.length} budget{overBudget.length > 1 ? "s" : ""} over 80% — review your spending
             </Text>
@@ -189,17 +189,17 @@ export default function BudgetsScreen() {
         {/* Action Buttons */}
         <View style={styles.actionRow}>
           <Pressable style={styles.actionBtn} onPress={() => setShowForm(true)}>
-            <Feather name="plus-circle" size={16} color={Colors.primary} />
+            <Icon name="plus-circle" size={16} color={Colors.primary} />
             <Text style={styles.actionBtnText}>Create</Text>
           </Pressable>
           <Pressable style={styles.actionBtn} onPress={() => setShowOverallBudget(true)}>
-            <Feather name="sliders" size={16} color={Colors.primary} />
+            <Icon name="sliders" size={16} color={Colors.primary} />
             <Text style={styles.actionBtnText}>Adjust</Text>
           </Pressable>
           <Pressable style={styles.actionBtn} onPress={() => {
             Alert.alert("Pause Budgets", "This would pause all budget tracking. Feature coming soon!");
           }}>
-            <Feather name="pause-circle" size={16} color={Colors.primary} />
+            <Icon name="pause-circle" size={16} color={Colors.primary} />
             <Text style={styles.actionBtnText}>Pause</Text>
           </Pressable>
         </View>
@@ -214,7 +214,7 @@ export default function BudgetsScreen() {
 
         {budgets.length === 0 ? (
           <View style={styles.emptyState}>
-            <Feather name="target" size={40} color={Colors.border} />
+            <Icon name="target" size={40} color={Colors.border} />
             <Text style={styles.emptyText}>No budgets set yet</Text>
             <Pressable style={styles.emptyBtn} onPress={() => setShowForm(true)}>
               <Text style={styles.emptyBtnText}>Create Budget</Text>
@@ -261,7 +261,7 @@ export default function BudgetsScreen() {
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={() => setShowForm(true)}
       >
-        <Feather name="plus" size={24} color="#fff" />
+        <Icon name="plus" size={24} color="#fff" />
       </Pressable>
 
       {/* Add Budget Modal */}
@@ -271,7 +271,7 @@ export default function BudgetsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Budget Goal</Text>
               <Pressable onPress={() => setShowForm(false)}>
-                <Feather name="x" size={22} color={Colors.text} />
+                <Icon name="x" size={22} color={Colors.text} />
               </Pressable>
             </View>
 
@@ -319,7 +319,7 @@ export default function BudgetsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Overall Monthly Budget</Text>
               <Pressable onPress={() => setShowOverallBudget(false)}>
-                <Feather name="x" size={22} color={Colors.text} />
+                <Icon name="x" size={22} color={Colors.text} />
               </Pressable>
             </View>
 

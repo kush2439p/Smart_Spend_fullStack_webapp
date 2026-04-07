@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "@/constants/colors";
 
@@ -40,7 +40,7 @@ export default function AboutScreen() {
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={Colors.text} />
+          <Icon name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>About SmartSpend</Text>
         <View style={{ width: 40 }} />
@@ -78,7 +78,7 @@ export default function AboutScreen() {
           {TEAM.map((f, i) => (
             <View key={i} style={[styles.featureRow, i === TEAM.length - 1 && { borderBottomWidth: 0 }]}>
               <View style={styles.featureIcon}>
-                <Feather name={f.icon as any} size={18} color={Colors.primary} />
+                <Icon name={f.icon as any} size={18} color={Colors.primary} />
               </View>
               <View style={styles.featureBody}>
                 <Text style={styles.featureTitle}>{f.name}</Text>
@@ -108,10 +108,10 @@ export default function AboutScreen() {
               onPress={() => Linking.openURL(l.url).catch(() => {})}
             >
               <View style={styles.linkIcon}>
-                <Feather name={l.icon as any} size={18} color={Colors.primary} />
+                <Icon name={l.icon as any} size={18} color={Colors.primary} />
               </View>
               <Text style={styles.linkLabel}>{l.label}</Text>
-              <Feather name="external-link" size={14} color={Colors.textSecondary} />
+              <Icon name="external-link" size={14} color={Colors.textSecondary} />
             </Pressable>
           ))}
         </View>

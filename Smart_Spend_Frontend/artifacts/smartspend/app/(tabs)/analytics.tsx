@@ -23,7 +23,7 @@ import Svg, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { analyticsApi, CategoryBreakdown, MonthlyComparison, DailyAnalytics } from "@/services/api";
@@ -93,14 +93,14 @@ export default function AnalyticsScreen() {
             if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
             else setSelectedMonth(m => m - 1);
           }} style={styles.navBtn}>
-            <Feather name="chevron-left" size={18} color={Colors.text} />
+            <Icon name="chevron-left" size={18} color={Colors.text} />
           </Pressable>
           <Text style={styles.monthText}>{MONTHS[selectedMonth]} {selectedYear}</Text>
           <Pressable onPress={() => {
             if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
             else setSelectedMonth(m => m + 1);
           }} style={styles.navBtn}>
-            <Feather name="chevron-right" size={18} color={Colors.text} />
+            <Icon name="chevron-right" size={18} color={Colors.text} />
           </Pressable>
         </View>
       </View>
@@ -113,7 +113,7 @@ export default function AnalyticsScreen() {
             {formatCurrency(totalIncome, currency)}
           </Text>
           <View style={styles.changeRow}>
-            <Feather name="trending-up" size={11} color={Colors.income} />
+            <Icon name="trending-up" size={11} color={Colors.income} />
             <Text style={[styles.summaryChange, { color: Colors.income }]}> +12.4%</Text>
           </View>
         </View>
@@ -123,7 +123,7 @@ export default function AnalyticsScreen() {
             {formatCurrency(totalExpense, currency)}
           </Text>
           <View style={styles.changeRow}>
-            <Feather name="trending-down" size={11} color={Colors.expense} />
+            <Icon name="trending-down" size={11} color={Colors.expense} />
             <Text style={[styles.summaryChange, { color: Colors.expense }]}> -8.2%</Text>
           </View>
         </View>
@@ -145,7 +145,7 @@ export default function AnalyticsScreen() {
         <>
           {breakdown.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Feather name="pie-chart" size={36} color={Colors.border} />
+              <Icon name="pie-chart" size={36} color={Colors.border} />
               <Text style={styles.emptyText}>No expense data this month</Text>
             </View>
           ) : (
@@ -284,7 +284,7 @@ function SVGLineChart({ data, currency }: { data: DailyAnalytics[]; currency: st
   if (!hasData) {
     return (
       <View style={{ alignItems: "center", justifyContent: "center", height: H, gap: 10 }}>
-        <Feather name="trending-up" size={32} color={Colors.border} />
+        <Icon name="trending-up" size={32} color={Colors.border} />
         <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary }}>
           No spending recorded this month
         </Text>

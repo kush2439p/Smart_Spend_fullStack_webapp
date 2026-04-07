@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -70,7 +70,7 @@ export default function HelpScreen() {
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={Colors.text} />
+          <Icon name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Help & Support</Text>
         <View style={{ width: 40 }} />
@@ -80,7 +80,7 @@ export default function HelpScreen() {
         {/* Hero */}
         <View style={styles.hero}>
           <View style={styles.heroIcon}>
-            <Feather name="help-circle" size={32} color={Colors.primary} />
+            <Icon name="help-circle" size={32} color={Colors.primary} />
           </View>
           <Text style={styles.heroTitle}>How can we help?</Text>
           <Text style={styles.heroSub}>Search our docs or get in touch with the team</Text>
@@ -92,13 +92,13 @@ export default function HelpScreen() {
           {SUPPORT_LINKS.map((s, i) => (
             <Pressable key={i} style={styles.supportRow} onPress={s.action}>
               <View style={styles.supportIcon}>
-                <Feather name={s.icon as any} size={18} color={Colors.primary} />
+                <Icon name={s.icon as any} size={18} color={Colors.primary} />
               </View>
               <View style={styles.supportBody}>
                 <Text style={styles.supportLabel}>{s.label}</Text>
                 <Text style={styles.supportSub}>{s.sub}</Text>
               </View>
-              <Feather name="chevron-right" size={16} color={Colors.textSecondary} />
+              <Icon name="chevron-right" size={16} color={Colors.textSecondary} />
             </Pressable>
           ))}
         </View>
@@ -110,7 +110,7 @@ export default function HelpScreen() {
             <Pressable key={i} style={styles.faqItem} onPress={() => toggleFaq(i)}>
               <View style={styles.faqHeader}>
                 <Text style={styles.faqQuestion}>{faq.q}</Text>
-                <Feather name={openFaq === i ? "chevron-up" : "chevron-down"} size={18} color={Colors.primary} />
+                <Icon name={openFaq === i ? "chevron-up" : "chevron-down"} size={18} color={Colors.primary} />
               </View>
               {openFaq === i && (
                 <Text style={styles.faqAnswer}>{faq.a}</Text>

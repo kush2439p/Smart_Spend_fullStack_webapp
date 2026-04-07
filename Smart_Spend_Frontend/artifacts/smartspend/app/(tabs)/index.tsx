@@ -14,7 +14,7 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -124,7 +124,7 @@ export default function DashboardScreen() {
           <Text style={styles.subGreeting}>Here's your financial overview</Text>
         </View>
         <Pressable style={styles.notifBtn} onPress={() => setShowNotifs(true)}>
-          <Feather name="bell" size={21} color={Colors.text} />
+          <Icon name="bell" size={21} color={Colors.text} />
           {unreadCount > 0 && (
             <View style={styles.notifBadge}>
               <Text style={styles.notifBadgeText}>{unreadCount}</Text>
@@ -138,12 +138,12 @@ export default function DashboardScreen() {
         <Animated.View style={{ opacity: headerAnim }}>
           <Pressable style={styles.alertBanner} onPress={() => router.push("/budgets")}>
             <View style={styles.alertIconWrap}>
-              <Feather name="alert-triangle" size={16} color={Colors.expense} />
+              <Icon name="alert-triangle" size={16} color={Colors.expense} />
             </View>
             <Text style={styles.alertText}>
               {data.budgetAlerts[0].categoryName} is at {Math.round(data.budgetAlerts[0].percentage)}% of budget
             </Text>
-            <Feather name="chevron-right" size={15} color={Colors.expense} />
+            <Icon name="chevron-right" size={15} color={Colors.expense} />
           </Pressable>
         </Animated.View>
       )}
@@ -167,7 +167,7 @@ export default function DashboardScreen() {
           <View style={styles.balanceRow}>
             <View style={styles.balStat}>
               <View style={[styles.balStatIcon, { backgroundColor: Colors.income + "30" }]}>
-                <Feather name="arrow-down-circle" size={16} color={Colors.income} />
+                <Icon name="arrow-down-circle" size={16} color={Colors.income} />
               </View>
               <View>
                 <Text style={styles.balStatLabel}>Income</Text>
@@ -179,7 +179,7 @@ export default function DashboardScreen() {
             <View style={styles.balStatDivider} />
             <View style={styles.balStat}>
               <View style={[styles.balStatIcon, { backgroundColor: Colors.expense + "30" }]}>
-                <Feather name="arrow-up-circle" size={16} color={Colors.expense} />
+                <Icon name="arrow-up-circle" size={16} color={Colors.expense} />
               </View>
               <View>
                 <Text style={styles.balStatLabel}>Expenses</Text>
@@ -215,7 +215,7 @@ export default function DashboardScreen() {
           <View style={styles.trendHeader}>
             <Text style={styles.sectionTitle}>7-Day Trend</Text>
             <View style={styles.trendBadge}>
-              <Feather name="trending-up" size={12} color={Colors.income} />
+              <Icon name="trending-up" size={12} color={Colors.income} />
               <Text style={styles.trendBadgeText}>This Week</Text>
             </View>
           </View>
@@ -401,7 +401,7 @@ function NotificationModal({ visible, onClose, insets, notifications }: { visibl
           </View>
           {notifications.length === 0 ? (
             <View style={styles.notifEmptyState}>
-              <Feather name="bell-off" size={36} color={Colors.border} />
+              <Icon name="bell-off" size={36} color={Colors.border} />
               <Text style={styles.notifEmptyTitle}>All Clear!</Text>
               <Text style={styles.notifEmptyText}>No alerts right now. You'll be notified when a budget is close to the limit or you receive a transaction.</Text>
             </View>
@@ -409,7 +409,7 @@ function NotificationModal({ visible, onClose, insets, notifications }: { visibl
             notifications.map((n: any) => (
               <Pressable key={n.id} style={styles.notifItem}>
                 <View style={[styles.notifItemIcon, { backgroundColor: n.color + "18" }]}>
-                  <Feather name={n.icon as any} size={18} color={n.color} />
+                  <Icon name={n.icon as any} size={18} color={n.color} />
                 </View>
                 <View style={styles.notifItemBody}>
                   <Text style={styles.notifItemTitle}>{n.title}</Text>

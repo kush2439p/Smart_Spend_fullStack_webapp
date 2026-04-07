@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 
@@ -82,7 +82,7 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/onboarding")}>
-          <Feather name="arrow-left" size={24} color={Colors.text} />
+          <Icon name="arrow-left" size={24} color={Colors.text} />
         </Pressable>
 
         <Text style={styles.heading}>Create Account</Text>
@@ -92,7 +92,7 @@ export default function RegisterScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Full Name</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="user" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="user" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="John Doe"
@@ -108,7 +108,7 @@ export default function RegisterScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Email Address</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="john@example.com"
@@ -125,7 +125,7 @@ export default function RegisterScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Min. 6 characters"
@@ -135,7 +135,7 @@ export default function RegisterScreen() {
                 secureTextEntry={!showPass}
               />
               <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
-                <Feather name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+                <Icon name={showPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
           </View>
@@ -143,7 +143,7 @@ export default function RegisterScreen() {
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrapper}>
-              <Feather name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+              <Icon name="lock" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 placeholder="Repeat your password"

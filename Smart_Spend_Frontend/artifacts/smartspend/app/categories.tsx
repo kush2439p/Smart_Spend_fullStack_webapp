@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { categoriesApi, Category, CreateCategoryRequest } from "@/services/api";
 import { MOCK_CATEGORIES } from "@/services/mockData";
@@ -65,11 +65,11 @@ export default function CategoriesScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={Colors.text} />
+          <Icon name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Categories</Text>
         <Pressable style={styles.addBtn} onPress={() => setShowForm(true)}>
-          <Feather name="plus" size={20} color={Colors.primary} />
+          <Icon name="plus" size={20} color={Colors.primary} />
         </Pressable>
       </View>
 
@@ -77,7 +77,7 @@ export default function CategoriesScreen() {
 
       {/* Search */}
       <View style={styles.searchBar}>
-        <Feather name="search" size={16} color={Colors.textSecondary} />
+        <Icon name="search" size={16} color={Colors.textSecondary} />
         <Text style={styles.searchPlaceholder}>Search categories...</Text>
       </View>
 
@@ -107,7 +107,7 @@ export default function CategoriesScreen() {
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Feather name="tag" size={40} color={Colors.border} />
+            <Icon name="tag" size={40} color={Colors.border} />
             <Text style={styles.emptyText}>No categories yet</Text>
           </View>
         }
@@ -130,7 +130,7 @@ export default function CategoriesScreen() {
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
         onPress={() => setShowForm(true)}
       >
-        <Feather name="plus" size={24} color="#fff" />
+        <Icon name="plus" size={24} color="#fff" />
       </Pressable>
 
       {/* New Category Modal */}
@@ -140,7 +140,7 @@ export default function CategoriesScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Category</Text>
               <Pressable onPress={() => setShowForm(false)}>
-                <Feather name="x" size={22} color={Colors.text} />
+                <Icon name="x" size={22} color={Colors.text} />
               </Pressable>
             </View>
 

@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Colors } from "@/constants/colors";
 import { aiApi, AiChatResponse, Transaction } from "@/services/api";
@@ -105,7 +105,7 @@ export default function AiScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.aiAvatar}>
-          <Feather name="zap" size={20} color="#fff" />
+          <Icon name="zap" size={20} color="#fff" />
         </View>
         <View>
           <Text style={styles.headerTitle}>AI Assistant</Text>
@@ -133,7 +133,7 @@ export default function AiScreen() {
           <View style={[styles.messageWrapper, msg.role === "user" ? styles.userWrapper : styles.assistantWrapper]}>
             {msg.role === "assistant" && (
               <View style={styles.smallAvatar}>
-                <Feather name="zap" size={12} color="#fff" />
+                <Icon name="zap" size={12} color="#fff" />
               </View>
             )}
             <View style={[styles.bubble, msg.role === "user" ? styles.userBubble : styles.assistantBubble]}>
@@ -142,7 +142,7 @@ export default function AiScreen() {
               </Text>
               {msg.transaction && (
                 <View style={styles.txConfirm}>
-                  <Feather name="check-circle" size={14} color={Colors.income} />
+                  <Icon name="check-circle" size={14} color={Colors.income} />
                   <Text style={styles.txConfirmText}>
                     Transaction saved: {msg.transaction.title} — ₹{msg.transaction.amount}
                   </Text>
@@ -187,7 +187,7 @@ export default function AiScreen() {
           {isSending ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Feather name="send" size={18} color="#fff" />
+            <Icon name="send" size={18} color="#fff" />
           )}
         </Pressable>
       </View>

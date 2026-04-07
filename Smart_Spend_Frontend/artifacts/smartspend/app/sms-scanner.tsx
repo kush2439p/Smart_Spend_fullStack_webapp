@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import * as Clipboard from "expo-clipboard";
 import { Colors } from "@/constants/colors";
 import { smsApi, transactionsApi } from "@/services/api";
@@ -246,7 +246,7 @@ export default function SmsScannerScreen() {
   const renderPermissionCard = () => (
     <View style={styles.centreCard}>
       <View style={styles.iconCircle}>
-        <Feather name="message-square" size={36} color={Colors.primary} />
+        <Icon name="message-square" size={36} color={Colors.primary} />
       </View>
       <Text style={styles.cardTitle}>Allow SMS Access</Text>
       <Text style={styles.cardSub}>
@@ -260,13 +260,13 @@ export default function SmsScannerScreen() {
           "Your messages are never stored or sent anywhere",
         ].map((b, i) => (
           <View key={i} style={styles.benefitRow}>
-            <Feather name="check" size={15} color={Colors.income} />
+            <Icon name="check" size={15} color={Colors.income} />
             <Text style={styles.benefitText}>{b}</Text>
           </View>
         ))}
       </View>
       <Pressable style={styles.primaryBtn} onPress={requestPermissions}>
-        <Feather name="shield" size={18} color="#fff" />
+        <Icon name="shield" size={18} color="#fff" />
         <Text style={styles.primaryBtnText}>Allow Message Access</Text>
       </Pressable>
     </View>
@@ -275,7 +275,7 @@ export default function SmsScannerScreen() {
   const renderDeniedCard = () => (
     <View style={styles.centreCard}>
       <View style={[styles.iconCircle, { backgroundColor: Colors.expense + "15" }]}>
-        <Feather name="slash" size={32} color={Colors.expense} />
+        <Icon name="slash" size={32} color={Colors.expense} />
       </View>
       <Text style={styles.cardTitle}>Permission Denied</Text>
       <Text style={styles.cardSub}>
@@ -283,7 +283,7 @@ export default function SmsScannerScreen() {
         and SmartSpend will parse it for you.
       </Text>
       <Pressable style={styles.primaryBtn} onPress={requestPermissions}>
-        <Feather name="refresh-cw" size={16} color="#fff" />
+        <Icon name="refresh-cw" size={16} color="#fff" />
         <Text style={styles.primaryBtnText}>Ask Again</Text>
       </Pressable>
       <ManualInput
@@ -299,7 +299,7 @@ export default function SmsScannerScreen() {
   const renderListeningCard = () => (
     <View style={styles.centreCard}>
       <Animated.View style={[styles.iconCircle, { opacity: pulseAnim, backgroundColor: Colors.income + "18" }]}>
-        <Feather name="radio" size={36} color={Colors.income} />
+        <Icon name="radio" size={36} color={Colors.income} />
       </Animated.View>
       <Text style={styles.cardTitle}>Listening for Payments</Text>
       <Text style={styles.cardSub}>
@@ -322,7 +322,7 @@ export default function SmsScannerScreen() {
   const renderClipboardFallback = () => (
     <View style={styles.centreCard}>
       <Animated.View style={[styles.iconCircle, { opacity: pulseAnim }]}>
-        <Feather name="message-square" size={36} color={Colors.primary} />
+        <Icon name="message-square" size={36} color={Colors.primary} />
       </Animated.View>
       <Text style={styles.cardTitle}>Clipboard Detection Active</Text>
       <Text style={styles.cardSub}>
@@ -331,7 +331,7 @@ export default function SmsScannerScreen() {
         come back — it will be detected instantly.
       </Text>
       <View style={styles.infoBox}>
-        <Feather name="info" size={14} color={Colors.primary} />
+        <Icon name="info" size={14} color={Colors.primary} />
         <Text style={styles.infoBoxText}>
           For true background SMS reading, build the Android APK from this project.
         </Text>
@@ -390,7 +390,7 @@ export default function SmsScannerScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color={Colors.text} />
+            <Icon name="arrow-left" size={22} color={Colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>SMS Scanner</Text>
           <View style={{ width: 40 }} />
@@ -399,7 +399,7 @@ export default function SmsScannerScreen() {
         {/* Detecting banner (while parsing) */}
         {parsing && (
           <View style={styles.detectCard}>
-            <Feather name="zap" size={18} color={Colors.primary} />
+            <Icon name="zap" size={18} color={Colors.primary} />
             <Text style={styles.detectText}>
               {source === "sms" ? "Payment SMS received — analysing…" : "SMS detected — analysing…"}
             </Text>
@@ -415,7 +415,7 @@ export default function SmsScannerScreen() {
           <View style={styles.reviewCard}>
             <View style={styles.reviewHeader}>
               <View style={styles.reviewHeaderLeft}>
-                <Feather name="check-circle" size={16} color={Colors.income} />
+                <Icon name="check-circle" size={16} color={Colors.income} />
                 <Text style={styles.reviewHeaderText}>Details Extracted</Text>
               </View>
               <View style={[
@@ -433,7 +433,7 @@ export default function SmsScannerScreen() {
 
             {source && (
               <View style={styles.sourceBadge}>
-                <Feather
+                <Icon
                   name={source === "sms" ? "radio" : "clipboard"}
                   size={12}
                   color={Colors.textSecondary}
@@ -467,7 +467,7 @@ export default function SmsScannerScreen() {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Feather name="plus-circle" size={18} color="#fff" />
+                  <Icon name="plus-circle" size={18} color="#fff" />
                   <Text style={styles.saveBtnText}>Save Transaction</Text>
                 </>
               )}
@@ -508,7 +508,7 @@ function ManualInput({
       />
       {smsText.length > 0 && (
         <Pressable style={styles.clearBtn} onPress={onClear}>
-          <Feather name="x-circle" size={15} color={Colors.textSecondary} />
+          <Icon name="x-circle" size={15} color={Colors.textSecondary} />
           <Text style={styles.clearText}>Clear</Text>
         </Pressable>
       )}
@@ -521,7 +521,7 @@ function ManualInput({
           <ActivityIndicator color="#fff" size="small" />
         ) : (
           <>
-            <Feather name="zap" size={17} color="#fff" />
+            <Icon name="zap" size={17} color="#fff" />
             <Text style={styles.parseBtnText}>Extract Details</Text>
           </>
         )}
@@ -537,7 +537,7 @@ function ReviewRow({
   return (
     <View style={styles.reviewRow}>
       <View style={styles.reviewRowLeft}>
-        <Feather name={icon as any} size={14} color={Colors.textSecondary} />
+        <Icon name={icon as any} size={14} color={Colors.textSecondary} />
         <Text style={styles.reviewLabel}>{label}</Text>
       </View>
       <Text style={[styles.reviewValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>

@@ -12,7 +12,7 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
@@ -103,7 +103,7 @@ export default function TransactionsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Transactions</Text>
         <Pressable style={styles.filterToggle} onPress={() => setShowFilters(!showFilters)}>
-          <Feather name="sliders" size={18} color={Colors.primary} />
+          <Icon name="sliders" size={18} color={Colors.primary} />
           <Text style={styles.filterToggleText}>Filter</Text>
         </Pressable>
       </View>
@@ -147,7 +147,7 @@ export default function TransactionsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Feather name="inbox" size={40} color={Colors.border} />
+            <Icon name="inbox" size={40} color={Colors.border} />
             <Text style={styles.emptyText}>No transactions found</Text>
           </View>
         }
@@ -166,7 +166,7 @@ export default function TransactionsScreen() {
         style={[styles.fab, { bottom: tabBarHeight + 16 }]}
         onPress={() => router.push("/add-transaction")}
       >
-        <Feather name="plus" size={24} color="#fff" />
+        <Icon name="plus" size={24} color="#fff" />
       </Pressable>
     </View>
   );
@@ -183,7 +183,7 @@ function SwipeableTransaction({ transaction: t, onDelete, currency }: { transact
     <Swipeable
       renderRightActions={() => (
         <Pressable style={styles.deleteAction} onPress={() => onDelete(t.id)}>
-          <Feather name="trash-2" size={22} color="#fff" />
+          <Icon name="trash-2" size={22} color="#fff" />
         </Pressable>
       )}
     >

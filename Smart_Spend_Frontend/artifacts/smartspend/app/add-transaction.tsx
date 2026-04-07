@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import * as Haptics from "expo-haptics";
 import { Colors } from "@/constants/colors";
 import { transactionsApi, categoriesApi, Category } from "@/services/api";
@@ -83,7 +83,7 @@ export default function AddTransactionScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable style={styles.closeBtn} onPress={() => router.back()}>
-            <Feather name="x" size={20} color={Colors.text} />
+            <Icon name="x" size={20} color={Colors.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Add Transaction</Text>
           <View style={{ width: 24 }} />

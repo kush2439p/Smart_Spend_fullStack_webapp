@@ -13,7 +13,7 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { exportApi } from "@/services/api";
@@ -155,7 +155,7 @@ export default function ProfileScreen() {
 
       {/* Logout */}
       <Pressable style={styles.logoutBtn} onPress={() => setShowLogoutModal(true)}>
-        <Feather name="log-out" size={18} color={Colors.expense} />
+        <Icon name="log-out" size={18} color={Colors.expense} />
         <Text style={styles.logoutText}>Logout</Text>
       </Pressable>
     </ScrollView>
@@ -165,7 +165,7 @@ export default function ProfileScreen() {
       <View style={styles.modalOverlay}>
         <View style={styles.logoutModal}>
           <View style={styles.logoutModalIcon}>
-            <Feather name="log-out" size={28} color={Colors.expense} />
+            <Icon name="log-out" size={28} color={Colors.expense} />
           </View>
           <Text style={styles.logoutModalTitle}>Log out?</Text>
           <Text style={styles.logoutModalSub}>You'll need to sign in again to access your account.</Text>
@@ -199,13 +199,13 @@ function SettingRow({ icon, label, value, onPress }: { icon: string; label: stri
     <Pressable style={styles.settingRow} onPress={onPress}>
       <View style={styles.settingLeft}>
         <View style={styles.settingIcon}>
-          <Feather name={icon as any} size={18} color={Colors.primary} />
+          <Icon name={icon as any} size={18} color={Colors.primary} />
         </View>
         <Text style={styles.settingLabel}>{label}</Text>
       </View>
       <View style={styles.settingRight}>
         {value && <Text style={styles.settingValue}>{value}</Text>}
-        <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+        <Icon name="chevron-right" size={18} color={Colors.textSecondary} />
       </View>
     </Pressable>
   );
@@ -216,7 +216,7 @@ function ToggleRow({ icon, label, subtitle, value, onChange }: { icon: string; l
     <View style={styles.settingRow}>
       <View style={styles.settingLeft}>
         <View style={styles.settingIcon}>
-          <Feather name={icon as any} size={18} color={Colors.primary} />
+          <Icon name={icon as any} size={18} color={Colors.primary} />
         </View>
         <View>
           <Text style={styles.settingLabel}>{label}</Text>

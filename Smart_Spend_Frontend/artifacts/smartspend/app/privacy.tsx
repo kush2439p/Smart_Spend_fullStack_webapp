@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 
 const SECURITY_ITEMS = [
@@ -51,7 +51,7 @@ export default function PrivacyScreen() {
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
       <View style={styles.header}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={Colors.text} />
+          <Icon name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Privacy & Security</Text>
         <View style={{ width: 40 }} />
@@ -76,7 +76,7 @@ export default function PrivacyScreen() {
           {SECURITY_ITEMS.map((item) => (
             <View key={item.label} style={styles.settingRow}>
               <View style={styles.settingIcon}>
-                <Feather name={item.icon as any} size={18} color={Colors.primary} />
+                <Icon name={item.icon as any} size={18} color={Colors.primary} />
               </View>
               <View style={styles.settingBody}>
                 <Text style={styles.settingLabel}>{item.label}</Text>
@@ -94,23 +94,23 @@ export default function PrivacyScreen() {
           ))}
           <Pressable style={styles.settingRow} onPress={() => Alert.alert("Change Password", "A password reset link will be sent to your email.")}>
             <View style={styles.settingIcon}>
-              <Feather name="key" size={18} color={Colors.primary} />
+              <Icon name="key" size={18} color={Colors.primary} />
             </View>
             <View style={styles.settingBody}>
               <Text style={styles.settingLabel}>Change Password</Text>
               <Text style={styles.settingSub}>Last changed 30 days ago</Text>
             </View>
-            <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+            <Icon name="chevron-right" size={18} color={Colors.textSecondary} />
           </Pressable>
           <Pressable style={styles.settingRow} onPress={() => Alert.alert("Active Sessions", "You have 1 active session on this device.")}>
             <View style={styles.settingIcon}>
-              <Feather name="monitor" size={18} color={Colors.primary} />
+              <Icon name="monitor" size={18} color={Colors.primary} />
             </View>
             <View style={styles.settingBody}>
               <Text style={styles.settingLabel}>Active Sessions</Text>
               <Text style={styles.settingSub}>1 device currently logged in</Text>
             </View>
-            <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+            <Icon name="chevron-right" size={18} color={Colors.textSecondary} />
           </Pressable>
         </View>
 
@@ -120,7 +120,7 @@ export default function PrivacyScreen() {
           {DATA_ITEMS.map((item) => (
             <View key={item.label} style={styles.settingRow}>
               <View style={styles.settingIcon}>
-                <Feather name={item.icon as any} size={18} color={Colors.primary} />
+                <Icon name={item.icon as any} size={18} color={Colors.primary} />
               </View>
               <View style={styles.settingBody}>
                 <Text style={styles.settingLabel}>{item.label}</Text>
@@ -139,13 +139,13 @@ export default function PrivacyScreen() {
             onPress={() => Alert.alert("Download My Data", "We'll prepare your data export and email you a link within 24 hours.")}
           >
             <View style={styles.settingIcon}>
-              <Feather name="download-cloud" size={18} color={Colors.primary} />
+              <Icon name="download-cloud" size={18} color={Colors.primary} />
             </View>
             <View style={styles.settingBody}>
               <Text style={styles.settingLabel}>Download My Data</Text>
               <Text style={styles.settingSub}>Export everything we have on you</Text>
             </View>
-            <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+            <Icon name="chevron-right" size={18} color={Colors.textSecondary} />
           </Pressable>
           <Pressable
             style={[styles.settingRow, { borderBottomWidth: 0 }]}
@@ -155,13 +155,13 @@ export default function PrivacyScreen() {
             ])}
           >
             <View style={[styles.settingIcon, { backgroundColor: Colors.expense + "15" }]}>
-              <Feather name="trash-2" size={18} color={Colors.expense} />
+              <Icon name="trash-2" size={18} color={Colors.expense} />
             </View>
             <View style={styles.settingBody}>
               <Text style={[styles.settingLabel, { color: Colors.expense }]}>Delete Account</Text>
               <Text style={styles.settingSub}>Permanently delete your account & data</Text>
             </View>
-            <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+            <Icon name="chevron-right" size={18} color={Colors.textSecondary} />
           </Pressable>
         </View>
 
@@ -171,13 +171,13 @@ export default function PrivacyScreen() {
           {POLICY_LINKS.map((p, i) => (
             <Pressable key={i} style={[styles.settingRow, i === POLICY_LINKS.length - 1 && { borderBottomWidth: 0 }]}>
               <View style={styles.settingIcon}>
-                <Feather name={p.icon as any} size={18} color={Colors.primary} />
+                <Icon name={p.icon as any} size={18} color={Colors.primary} />
               </View>
               <View style={styles.settingBody}>
                 <Text style={styles.settingLabel}>{p.label}</Text>
                 <Text style={styles.settingSub}>{p.updated}</Text>
               </View>
-              <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+              <Icon name="chevron-right" size={18} color={Colors.textSecondary} />
             </Pressable>
           ))}
         </View>

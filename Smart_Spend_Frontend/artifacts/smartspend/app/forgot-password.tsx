@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { authApi } from "@/services/api";
 
@@ -80,12 +80,12 @@ export default function ForgotPasswordScreen() {
         keyboardShouldPersistTaps="handled"
       >
       <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : router.replace("/login")}>
-        <Feather name="arrow-left" size={24} color={Colors.text} />
+        <Icon name="arrow-left" size={24} color={Colors.text} />
       </Pressable>
 
       <View style={styles.iconContainer}>
         <View style={styles.icon}>
-          <Feather name="lock" size={48} color={Colors.primary} />
+          <Icon name="lock" size={48} color={Colors.primary} />
         </View>
       </View>
 
@@ -98,7 +98,7 @@ export default function ForgotPasswordScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>Email Address</Text>
           <View style={styles.inputWrapper}>
-            <Feather name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
+            <Icon name="mail" size={18} color={Colors.textSecondary} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="john@example.com"

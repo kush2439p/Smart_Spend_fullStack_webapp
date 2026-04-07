@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { categoriesApi, Category } from "@/services/api";
@@ -74,7 +74,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color={Colors.text} />
+          <Icon name="arrow-left" size={24} color={Colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={{ width: 24 }} />
@@ -105,7 +105,7 @@ export default function SettingsScreen() {
                 {CURRENCIES.find(c => c.code === user?.currency)?.symbol} {user?.currency}
               </Text>
             </View>
-            <Feather name="chevron-right" size={20} color={Colors.textSecondary} />
+            <Icon name="chevron-right" size={20} color={Colors.textSecondary} />
           </Pressable>
         </View>
 
@@ -117,7 +117,7 @@ export default function SettingsScreen() {
               style={styles.addBtn}
               onPress={() => setShowCategoryModal(true)}
             >
-              <Feather name="plus" size={16} color={Colors.primary} />
+              <Icon name="plus" size={16} color={Colors.primary} />
             </Pressable>
           </View>
           <Text style={styles.sectionDescription}>
@@ -133,7 +133,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Currency</Text>
               <Pressable onPress={() => setShowCurrencyModal(false)}>
-                <Feather name="x" size={22} color={Colors.text} />
+                <Icon name="x" size={22} color={Colors.text} />
               </Pressable>
             </View>
 
@@ -154,7 +154,7 @@ export default function SettingsScreen() {
                   </View>
                 </View>
                 {user?.currency === currency.code && (
-                  <Feather name="check" size={20} color={Colors.primary} />
+                  <Icon name="check" size={20} color={Colors.primary} />
                 )}
               </Pressable>
             ))}
@@ -169,7 +169,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Create Category</Text>
               <Pressable onPress={() => setShowCategoryModal(false)}>
-                <Feather name="x" size={22} color={Colors.text} />
+                <Icon name="x" size={22} color={Colors.text} />
               </Pressable>
             </View>
 
@@ -241,7 +241,7 @@ export default function SettingsScreen() {
                     onPress={() => setSelectedColor(color)}
                   >
                     {selectedColor === color && (
-                      <Feather name="check" size={16} color="#fff" />
+                      <Icon name="check" size={16} color="#fff" />
                     )}
                   </Pressable>
                 ))}

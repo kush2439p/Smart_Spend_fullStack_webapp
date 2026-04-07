@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -214,7 +214,7 @@ export default function ReceiptScannerScreen() {
           {/* Permission denied */}
           {cameraPermission && !cameraPermission.granted && (
             <View style={styles.permissionBox}>
-              <Feather name="camera-off" size={48} color={Colors.textSecondary} />
+              <Icon name="camera-off" size={48} color={Colors.textSecondary} />
               <Text style={styles.permTitle}>Camera Access Needed</Text>
               <Text style={styles.permSub}>Allow camera access to scan receipts in real time.</Text>
               <Pressable style={styles.permBtn} onPress={requestCameraPermission}>
@@ -239,14 +239,14 @@ export default function ReceiptScannerScreen() {
               {/* Header overlay */}
               <View style={styles.cameraHeader}>
                 <Pressable style={styles.backBtn} onPress={() => router.back()}>
-                  <Feather name="arrow-left" size={20} color="#fff" />
+                  <Icon name="arrow-left" size={20} color="#fff" />
                 </Pressable>
                 <Text style={styles.headerTitle}>Scan Receipt</Text>
                 <Pressable
                   style={[styles.flashBtn, flash === "on" && styles.flashBtnOn]}
                   onPress={() => setFlash(f => f === "off" ? "on" : "off")}
                 >
-                  <Feather name="zap" size={20} color={flash === "on" ? "#FFD700" : "#fff"} />
+                  <Icon name="zap" size={20} color={flash === "on" ? "#FFD700" : "#fff"} />
                 </Pressable>
               </View>
 
@@ -270,14 +270,14 @@ export default function ReceiptScannerScreen() {
               {/* Bottom controls */}
               <View style={[styles.cameraActions, { paddingBottom: insets.bottom + 24 }]}>
                 <Pressable style={styles.sideBtn} onPress={pickFromGallery}>
-                  <Feather name="image" size={22} color="#fff" />
+                  <Icon name="image" size={22} color="#fff" />
                   <Text style={styles.sideBtnLabel}>Gallery</Text>
                 </Pressable>
                 <Pressable style={styles.captureBtn} onPress={capturePhoto}>
                   <View style={styles.captureBtnInner} />
                 </Pressable>
                 <Pressable style={styles.sideBtn} onPress={pickDocument}>
-                  <Feather name="file-text" size={22} color="#fff" />
+                  <Icon name="file-text" size={22} color="#fff" />
                   <Text style={styles.sideBtnLabel}>PDF</Text>
                 </Pressable>
               </View>
@@ -291,12 +291,12 @@ export default function ReceiptScannerScreen() {
         <View style={styles.fill}>
           <View style={styles.cameraHeader}>
             <Pressable style={styles.backBtn} onPress={() => router.back()}>
-              <Feather name="arrow-left" size={20} color="#fff" />
+              <Icon name="arrow-left" size={20} color="#fff" />
             </Pressable>
             <Text style={styles.headerTitle}>Upload Receipt</Text>
             {Platform.OS !== "web" && (
               <Pressable onPress={() => setStage("camera")}>
-                <Feather name="camera" size={22} color={Colors.primary} />
+                <Icon name="camera" size={22} color={Colors.primary} />
               </Pressable>
             )}
             {Platform.OS === "web" && <View style={{ width: 40 }} />}
@@ -304,7 +304,7 @@ export default function ReceiptScannerScreen() {
 
           <View style={styles.uploadCenter}>
             <View style={styles.uploadIllustration}>
-              <Feather name="file-text" size={56} color={Colors.primary} />
+              <Icon name="file-text" size={56} color={Colors.primary} />
             </View>
             <Text style={styles.uploadTitle}>Upload Your Receipt</Text>
             <Text style={styles.uploadSub}>
@@ -312,11 +312,11 @@ export default function ReceiptScannerScreen() {
             </Text>
 
             <Pressable style={styles.uploadBtn} onPress={pickFromGallery}>
-              <Feather name="image" size={20} color="#fff" />
+              <Icon name="image" size={20} color="#fff" />
               <Text style={styles.uploadBtnText}>Choose Photo</Text>
             </Pressable>
             <Pressable style={[styles.uploadBtn, styles.uploadBtnOutline]} onPress={pickDocument}>
-              <Feather name="file" size={20} color={Colors.primary} />
+              <Icon name="file" size={20} color={Colors.primary} />
               <Text style={[styles.uploadBtnText, { color: Colors.primary }]}>
                 Upload PDF / Document
               </Text>
@@ -359,7 +359,7 @@ export default function ReceiptScannerScreen() {
         <>
           <View style={styles.reviewHeader}>
             <Pressable style={styles.backBtn} onPress={resetCapture}>
-              <Feather name="arrow-left" size={20} color="#fff" />
+              <Icon name="arrow-left" size={20} color="#fff" />
             </Pressable>
             <Text style={styles.headerTitle}>Review Receipt</Text>
             <View style={{ width: 40 }} />
@@ -373,7 +373,7 @@ export default function ReceiptScannerScreen() {
             {/* Error banner */}
             {errorMsg && (
               <View style={styles.errorBanner}>
-                <Feather name="alert-circle" size={16} color="#fff" />
+                <Icon name="alert-circle" size={16} color="#fff" />
                 <Text style={styles.errorBannerText}>{errorMsg}</Text>
               </View>
             )}
@@ -386,7 +386,7 @@ export default function ReceiptScannerScreen() {
             {/* AI badge */}
             {!errorMsg && (
               <View style={styles.aiBadge}>
-                <Feather name="cpu" size={14} color={Colors.primary} />
+                <Icon name="cpu" size={14} color={Colors.primary} />
                 <Text style={styles.aiBadgeText}>AI Extracted — please review and edit if needed</Text>
               </View>
             )}
@@ -397,14 +397,14 @@ export default function ReceiptScannerScreen() {
                 style={[styles.typeBtn, txType === "expense" && styles.typeBtnExpense]}
                 onPress={() => setTxType("expense")}
               >
-                <Feather name="arrow-down-circle" size={16} color={txType === "expense" ? "#fff" : Colors.textSecondary} />
+                <Icon name="arrow-down-circle" size={16} color={txType === "expense" ? "#fff" : Colors.textSecondary} />
                 <Text style={[styles.typeBtnText, txType === "expense" && { color: "#fff" }]}>Expense</Text>
               </Pressable>
               <Pressable
                 style={[styles.typeBtn, txType === "income" && styles.typeBtnIncome]}
                 onPress={() => setTxType("income")}
               >
-                <Feather name="arrow-up-circle" size={16} color={txType === "income" ? "#fff" : Colors.textSecondary} />
+                <Icon name="arrow-up-circle" size={16} color={txType === "income" ? "#fff" : Colors.textSecondary} />
                 <Text style={[styles.typeBtnText, txType === "income" && { color: "#fff" }]}>Income</Text>
               </Pressable>
             </View>
@@ -491,7 +491,7 @@ export default function ReceiptScannerScreen() {
                 <View style={styles.itemsList}>
                   {items.map((item, i) => (
                     <View key={i} style={styles.itemRow}>
-                      <Feather name="check" size={14} color={Colors.primary} />
+                      <Icon name="check" size={14} color={Colors.primary} />
                       <Text style={styles.itemText}>{item}</Text>
                     </View>
                   ))}
@@ -503,7 +503,7 @@ export default function ReceiptScannerScreen() {
           {/* Save / Scan again */}
           <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
             <Pressable style={styles.scanAgainBtn} onPress={resetCapture}>
-              <Feather name="camera" size={16} color={Colors.textSecondary} />
+              <Icon name="camera" size={16} color={Colors.textSecondary} />
               <Text style={styles.scanAgainText}>Scan Again</Text>
             </Pressable>
             <Pressable
@@ -515,7 +515,7 @@ export default function ReceiptScannerScreen() {
                 ? <ActivityIndicator color="#fff" size="small" />
                 : (
                   <>
-                    <Feather name="check" size={16} color="#fff" />
+                    <Icon name="check" size={16} color="#fff" />
                     <Text style={styles.saveBtnText}>Save Transaction</Text>
                   </>
                 )}

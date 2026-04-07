@@ -11,7 +11,7 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
@@ -69,7 +69,7 @@ export default function OnboardingScreen() {
           ]}
         >
           <View style={styles.logoIconBg}>
-            <Feather name="credit-card" size={44} color={Colors.primary} />
+            <Icon name="credit-card" size={44} color={Colors.primary} />
           </View>
           <Text style={styles.logoText}>SmartSpend</Text>
           <Text style={styles.tagline}>Your money, fully automated</Text>
@@ -119,7 +119,7 @@ function FeatureRow({ icon, label, color, bg }: { icon: string; label: string; c
   return (
     <View style={styles.featureRow}>
       <View style={[styles.featureIcon, { backgroundColor: bg, borderColor: color + "50", borderWidth: 1.5 }]}>
-        <Feather name={icon as any} size={20} color={color} />
+        <Icon name={icon as any} size={20} color={color} />
       </View>
       <Text style={styles.featureLabel}>{label}</Text>
     </View>

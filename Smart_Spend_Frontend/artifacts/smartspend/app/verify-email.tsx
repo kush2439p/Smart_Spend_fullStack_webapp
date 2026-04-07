@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
+import Icon from "@/components/Icon";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "@/constants/colors";
 import { authApi } from "@/services/api";
@@ -115,7 +115,7 @@ export default function VerifyEmailScreen() {
     return (
       <Animated.View style={[styles.container, styles.centered, { opacity: fadeAnim, paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}>
         <View style={[styles.iconCircle, { borderColor: Colors.success, backgroundColor: Colors.success + "22" }]}>
-          <Feather name="check-circle" size={48} color={Colors.success} />
+          <Icon name="check-circle" size={48} color={Colors.success} />
         </View>
         <Text style={styles.heading}>Email Verified!</Text>
         <Text style={styles.subtitle}>Your account is now active. You can log in and start using SmartSpend.</Text>
@@ -134,7 +134,7 @@ export default function VerifyEmailScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}
       >
         <View style={[styles.iconCircle, { borderColor: Colors.error, backgroundColor: Colors.error + "22" }]}>
-          <Feather name="alert-circle" size={48} color={Colors.error} />
+          <Icon name="alert-circle" size={48} color={Colors.error} />
         </View>
         <Text style={styles.heading}>Link Expired or Invalid</Text>
         <Text style={styles.subtitle}>
@@ -179,7 +179,7 @@ export default function VerifyEmailScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 40 }]}
     >
       <View style={[styles.iconCircle, { borderColor: Colors.primary, backgroundColor: Colors.primary + "15" }]}>
-        <Feather name="mail" size={48} color={Colors.primary} />
+        <Icon name="mail" size={48} color={Colors.primary} />
       </View>
 
       <Text style={styles.heading}>Check Your Email</Text>
@@ -191,7 +191,7 @@ export default function VerifyEmailScreen() {
 
       {resendSent ? (
         <View style={styles.successBanner}>
-          <Feather name="check-circle" size={18} color={Colors.success} style={{ marginRight: 8 }} />
+          <Icon name="check-circle" size={18} color={Colors.success} style={{ marginRight: 8 }} />
           <Text style={styles.successBannerText}>Email sent! Check your inbox.</Text>
         </View>
       ) : (
