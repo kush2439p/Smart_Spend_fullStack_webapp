@@ -68,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsEmailVerified(false);
         // If not already loading (optimistic restore happened), navigate away
         if (userJson) {
+          Alert.alert("Session Expired", "Your session has expired. Please log in again.");
           router.replace("/onboarding");
         }
       }

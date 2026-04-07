@@ -70,14 +70,14 @@ export default function DashboardScreen() {
   const listAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.stagger(80, [
-      Animated.timing(headerAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+    Animated.stagger(40, [
+      Animated.timing(headerAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(cardAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.spring(cardScale, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true }),
+        Animated.timing(cardAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.spring(cardScale, { toValue: 1, friction: 8, tension: 80, useNativeDriver: true }),
       ]),
-      Animated.timing(actionsAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(listAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(actionsAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.timing(listAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -287,19 +287,37 @@ export default function DashboardScreen() {
         </Animated.View>
       )}
 
-      {/* ── Recent Transactions ── */}
+      {/* ── Recent Transactions / Empty State ── */}
       <Animated.View style={{ opacity: listAnim, transform: [{ translateY: listAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }}>
         <View style={styles.recentHeader}>
           <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          <Pressable style={styles.seeAllChip} onPress={() => router.push("/(tabs)/transactions")}>
-            <Text style={styles.seeAllText}>See All</Text>
-          </Pressable>
+          {(data?.recentTransactions?.length ?? 0) > 0 && (
+            <Pressable style={styles.seeAllChip} onPress={() => router.push("/(tabs)/transactions")}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </Pressable>
+          )}
         </View>
-        <View style={styles.txList}>
-          {(data?.recentTransactions ?? []).map((t, i) => (
-            <TransactionRow key={t.id} transaction={t} index={i} currencySymbol={currencySymbol} currency={user?.currency || "INR"} />
-          ))}
-        </View>
+        {(data?.recentTransactions?.length ?? 0) === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>💸</Text>
+            <Text style={styles.emptyTitle}>No transactions yet</Text>
+            <Text style={styles.emptyBody}>Add your first expense or income to get started tracking your finances.</Text>
+            <View style={styles.emptyActions}>
+              <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: "/add-transaction", params: { type: "expense" } })}>
+                <Text style={styles.emptyBtnText}>+ Add Expense</Text>
+              </Pressable>
+              <Pressable style={[styles.emptyBtn, { backgroundColor: Colors.income + "18", borderColor: Colors.income + "40" }]} onPress={() => router.push({ pathname: "/add-transaction", params: { type: "income" } })}>
+                <Text style={[styles.emptyBtnText, { color: Colors.income }]}>+ Add Income</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.txList}>
+            {(data?.recentTransactions ?? []).map((t, i) => (
+              <TransactionRow key={t.id} transaction={t} index={i} currencySymbol={currencySymbol} currency={user?.currency || "INR"} />
+            ))}
+          </View>
+        )}
       </Animated.View>
     </ScrollView>
 
@@ -309,7 +327,7 @@ export default function DashboardScreen() {
   );
 }
 
-function QuickActionBtn({ icon, label, color, emoji, onPress }: { icon: string; label: string; color: string; emoji: string; onPress: () => void }) {
+const QuickActionBtn = React.memo(function QuickActionBtn({ icon, label, color, emoji, onPress }: { icon: string; label: string; color: string; emoji: string; onPress: () => void }) {
   const scale = useRef(new Animated.Value(1)).current;
   const press = () => {
     Animated.sequence([
@@ -328,12 +346,12 @@ function QuickActionBtn({ icon, label, color, emoji, onPress }: { icon: string; 
       </Pressable>
     </Animated.View>
   );
-}
+});
 
-function TransactionRow({ transaction: t, index, currencySymbol, currency }: { transaction: Transaction; index: number; currencySymbol: string; currency: string }) {
+const TransactionRow = React.memo(function TransactionRow({ transaction: t, index, currencySymbol, currency }: { transaction: Transaction; index: number; currencySymbol: string; currency: string }) {
   const anim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(anim, { toValue: 1, duration: 350, delay: index * 60, useNativeDriver: true }).start();
+    Animated.timing(anim, { toValue: 1, duration: 200, delay: index * 40, useNativeDriver: true }).start();
   }, []);
   const displayAmt = convertFromINR(Math.abs(t.amount), currency);
   const amtStr = displayAmt >= 1000
@@ -356,7 +374,7 @@ function TransactionRow({ transaction: t, index, currencySymbol, currency }: { t
       </View>
     </Animated.View>
   );
-}
+});
 
 function MiniChart({ data }: { data: { date: string; amount: number }[] }) {
   const max = Math.max(...data.map((d) => d.amount), 1); // Ensure max is at least 1
@@ -621,4 +639,12 @@ const styles = StyleSheet.create({
   notifEmptyState: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24, gap: 12 },
   notifEmptyTitle: { fontFamily: "Inter_700Bold", fontSize: 17, color: Colors.text },
   notifEmptyText: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 20 },
+
+  emptyState: { alignItems: "center", paddingVertical: 40, paddingHorizontal: 24, backgroundColor: Colors.card, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, gap: 8 },
+  emptyEmoji: { fontSize: 48, marginBottom: 4 },
+  emptyTitle: { fontFamily: "Inter_700Bold", fontSize: 18, color: Colors.text },
+  emptyBody: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", lineHeight: 20 },
+  emptyActions: { flexDirection: "row", gap: 12, marginTop: 8 },
+  emptyBtn: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: 14, backgroundColor: Colors.primary + "18", borderWidth: 1, borderColor: Colors.primary + "40" },
+  emptyBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.primary },
 });

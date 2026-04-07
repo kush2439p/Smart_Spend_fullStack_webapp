@@ -183,14 +183,33 @@ export default function AddTransactionScreen() {
             {/* Date */}
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Date</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={date}
-                onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textSecondary}
-                returnKeyType="next"
-              />
+              <View style={styles.datePicker}>
+                <Pressable
+                  style={styles.dateArrow}
+                  onPress={() => {
+                    const d = new Date(date);
+                    d.setDate(d.getDate() - 1);
+                    setDate(d.toISOString().split("T")[0]);
+                  }}
+                >
+                  <Icon name="chevron-left" size={20} color={Colors.primary} />
+                </Pressable>
+                <Text style={styles.dateText}>
+                  {new Date(date + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" })}
+                </Text>
+                <Pressable
+                  style={styles.dateArrow}
+                  onPress={() => {
+                    const d = new Date(date);
+                    d.setDate(d.getDate() + 1);
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    if (d <= tomorrow) setDate(d.toISOString().split("T")[0]);
+                  }}
+                >
+                  <Icon name="chevron-right" size={20} color={Colors.primary} />
+                </Pressable>
+              </View>
             </View>
 
             {/* Note */}
@@ -284,6 +303,17 @@ const styles = StyleSheet.create({
   },
   catIconLg: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   catName: { fontFamily: "Inter_400Regular", fontSize: 10, color: Colors.text, textAlign: "center" },
+  datePicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 4,
+  },
+  dateArrow: { padding: 12, justifyContent: "center", alignItems: "center" },
+  dateText: { flex: 1, fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.text, textAlign: "center" },
   saveBtn: { paddingVertical: 17, borderRadius: 16, alignItems: "center", marginTop: 8, marginBottom: 8 },
   saveBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
 });
