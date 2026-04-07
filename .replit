@@ -88,3 +88,7 @@ externalPort = 3002
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "cd smartspend && mvn spring-boot:run & cd Smart_Spend_Frontend && PORT=5000 pnpm --filter @workspace/smartspend run dev"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
