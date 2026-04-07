@@ -96,7 +96,7 @@ timeoutMs = 120000
 [userenv]
 
 [userenv.shared]
-MYSQL_URL = "jdbc:mysql://mysql-2f284d93-kushv619-cf1e.a.aivencloud.com:23575/defaultdb?useSSL=true&requireSSL=true&verifyServerCertificate=false&allowPublicKeyRetrieval=true"
+MYSQL_URL = "jdbc:mysql://avnadmin:AVNS_l_92RnqYsdMit1U9rxZ@mysql-2f284d93-kushv619-cf1e.a.aivencloud.com:23575/defaultdb?useSSL=true&requireSSL=true&verifyServerCertificate=false&allowPublicKeyRetrieval=true"
 MYSQL_USER = "avnadmin"
 DB_DRIVER = "com.mysql.cj.jdbc.Driver"
 HIBERNATE_DIALECT = "org.hibernate.dialect.MySQLDialect"
