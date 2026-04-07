@@ -11,6 +11,7 @@
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/repository/UserRepository.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/repository/AuditLogRepository.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/dto/AiChatRequest.java
+/home/runner/workspace/smartspend/src/main/java/com/smartspend/filter/AuthEntryPoint.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/controller/TransactionController.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/controller/VerifyEmailWebController.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/dto/ResetPasswordRequest.java

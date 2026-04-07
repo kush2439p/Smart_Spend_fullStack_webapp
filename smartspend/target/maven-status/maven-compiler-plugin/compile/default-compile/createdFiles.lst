@@ -1,2 +1,3 @@
 com/smartspend/controller/VerifyEmailWebController.class
+com/smartspend/filter/AuthEntryPoint.class
 com/smartspend/controller/ResetPasswordWebController.class
