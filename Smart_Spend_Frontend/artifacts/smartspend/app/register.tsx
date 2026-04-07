@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Alert,
   Platform,
   Animated,
   KeyboardAvoidingView,
@@ -29,6 +28,7 @@ export default function RegisterScreen() {
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -41,29 +41,32 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     Keyboard.dismiss();
+    setError(null);
+
     if (!name.trim() || !email.trim() || !password || !confirmPass) {
-      Alert.alert("Error", "Please fill in all fields");
+      setError("Please fill in all fields.");
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert("Error", "Please enter a valid email address");
+      setError("Please enter a valid email address.");
       return;
     }
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters");
+      setError("Password must be at least 6 characters.");
       return;
     }
     if (password !== confirmPass) {
-      Alert.alert("Error", "Passwords do not match");
+      setError("Passwords do not match.");
       return;
     }
+
     setLoading(true);
     try {
       await register(name.trim(), email.trim().toLowerCase(), password);
     } catch (e: any) {
       const msg = e?.message || "Something went wrong. Please try again.";
-      Alert.alert("Registration Failed", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -99,7 +102,7 @@ export default function RegisterScreen() {
                 placeholder="John Doe"
                 placeholderTextColor={Colors.textSecondary}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(t) => { setName(t); setError(null); }}
                 autoCapitalize="words"
                 autoCorrect={false}
               />
@@ -115,7 +118,7 @@ export default function RegisterScreen() {
                 placeholder="john@example.com"
                 placeholderTextColor={Colors.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setError(null); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -132,7 +135,7 @@ export default function RegisterScreen() {
                 placeholder="Min. 6 characters"
                 placeholderTextColor={Colors.textSecondary}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); setError(null); }}
                 secureTextEntry={!showPass}
               />
               <Pressable onPress={() => setShowPass(!showPass)} style={styles.eyeBtn}>
@@ -150,7 +153,7 @@ export default function RegisterScreen() {
                 placeholder="Repeat your password"
                 placeholderTextColor={Colors.textSecondary}
                 value={confirmPass}
-                onChangeText={setConfirmPass}
+                onChangeText={(t) => { setConfirmPass(t); setError(null); }}
                 secureTextEntry={!showConfirmPass}
               />
               <Pressable onPress={() => setShowConfirmPass(!showConfirmPass)} style={styles.eyeBtn}>
@@ -158,6 +161,19 @@ export default function RegisterScreen() {
               </Pressable>
             </View>
           </View>
+
+          {error ? (
+            <View style={styles.errorBox}>
+              <Icon name="alert-circle" size={16} color="#D32F2F" style={{ marginRight: 8, flexShrink: 0 }} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {error?.toLowerCase().includes("already registered") ? (
+            <Pressable style={styles.loginHintBtn} onPress={() => router.replace("/login")}>
+              <Text style={styles.loginHintText}>Go to Login instead →</Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [styles.registerBtn, { opacity: pressed || loading ? 0.85 : 1 }]}
@@ -205,6 +221,33 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: { flex: 1, fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.text },
   eyeBtn: { padding: 4 },
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFEBEE",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FFCDD2",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  errorText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: "#C62828",
+    flex: 1,
+    lineHeight: 18,
+  },
+  loginHintBtn: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: -8,
+  },
+  loginHintText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.primary },
   registerBtn: {
     backgroundColor: Colors.primary,
     paddingVertical: 17,

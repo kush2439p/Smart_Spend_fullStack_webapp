@@ -27,7 +27,7 @@ public class EmailService {
 
     public void sendVerificationEmail(String toEmail, String name, String token) {
         String subject = "Verify your SmartSpend account";
-        String verifyUrl = "https://smartspendfullstackwebapp-production.up.railway.app/api/auth/verify?token=" + token;
+        String verifyUrl = "https://smartspendfullstackwebapp-production.up.railway.app/verify-email?token=" + token;
 
         String html = """
             <!DOCTYPE html>
@@ -149,7 +149,7 @@ public class EmailService {
 
     public void sendPasswordResetEmail(String toEmail, String name, String token) {
         String subject = "Reset your SmartSpend password";
-        String resetUrl = "https://smartspendfullstackwebapp-production.up.railway.app/api/reset-password?token=" + token;
+        String resetUrl = "https://smartspendfullstackwebapp-production.up.railway.app/reset-password-web?token=" + token;
 
         String html = """
             <!DOCTYPE html>

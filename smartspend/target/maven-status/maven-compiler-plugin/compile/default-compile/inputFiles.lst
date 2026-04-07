@@ -25,6 +25,7 @@
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/service/JwtService.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/SmartspendApplication.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/service/AuthService.java
+/home/runner/workspace/smartspend/src/main/java/com/smartspend/controller/ResetPasswordWebController.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/controller/InsightController.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/service/TransactionService.java
 /home/runner/workspace/smartspend/src/main/java/com/smartspend/model/Transaction.java

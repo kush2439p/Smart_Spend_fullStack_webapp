@@ -40,7 +40,8 @@ public class SecurityConfig {
                                 "/api/auth/reset-password",
                                 "/api/auth/resend-verification",
                                 "/api/dev/**",
-                                "/verify-email"
+                                "/verify-email",
+                                "/reset-password-web"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
