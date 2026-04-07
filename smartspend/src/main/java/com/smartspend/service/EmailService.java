@@ -19,10 +19,10 @@ public class EmailService {
 
     private final RestTemplate restTemplate;
 
-    @Value("${resend.api-key}")
-    private String resendApiKey;
+    @Value("${brevo.api-key}")
+    private String brevoApiKey;
 
-    @Value("${resend.from-email:SmartSpend <onboarding@resend.dev>}")
+    @Value("${brevo.from-email}")
     private String fromEmail;
 
     public void sendVerificationEmail(String toEmail, String name, String token) {
@@ -227,19 +227,21 @@ public class EmailService {
     private void sendEmail(String to, String subject, String htmlContent) {
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(resendApiKey);
+            headers.set("api-key", brevoApiKey);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            Map<String, Object> body = Map.of(
-                "from", fromEmail,
-                "to", List.of(to),
-                "subject", subject,
-                "html", htmlContent
-            );
+            Map<String, Object> sender = Map.of("name", "SmartSpend", "email", fromEmail);
+            Map<String, Object> recipient = Map.of("email", to);
+
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("sender", sender);
+            body.put("to", List.of(recipient));
+            body.put("subject", subject);
+            body.put("htmlContent", htmlContent);
 
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-            restTemplate.postForEntity("https://api.resend.com/emails", entity, String.class);
-            log.info("Email sent via Resend to: {}", to);
+            restTemplate.postForEntity("https://api.brevo.com/v3/smtp/email", entity, String.class);
+            log.info("Email sent via Brevo to: {}", to);
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
             throw new RuntimeException("Failed to send email: " + e.getMessage());
