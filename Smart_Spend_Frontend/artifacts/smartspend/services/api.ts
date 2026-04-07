@@ -41,6 +41,9 @@ async function request<T>(
     const error = await response.json().catch(() => ({ message: "Request failed" }));
     throw new Error(error.error || error.message || `HTTP ${response.status}`);
   }
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return undefined as unknown as T;
+  }
   return response.json();
 }
 

@@ -78,17 +78,25 @@ export default function TransactionsScreen() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const handleDelete = (id: string) => {
-    Alert.alert("Delete Transaction", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try { await transactionsApi.delete(id); } catch {}
-          setTransactions((prev) => prev.filter((t) => t.id !== id));
+    Alert.alert(
+      "Delete Transaction",
+      "Are you sure you want to delete this transaction? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await transactionsApi.delete(id);
+              setTransactions((prev) => prev.filter((t) => t.id !== id));
+            } catch {
+              Alert.alert("Error", "Failed to delete transaction. Please try again.");
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const filtered = transactions.filter((t) => {
@@ -200,7 +208,8 @@ function SwipeableTransaction({ transaction: t, onDelete, currency }: { transact
     <Swipeable
       renderRightActions={() => (
         <Pressable style={styles.deleteAction} onPress={() => onDelete(t.id)}>
-          <Icon name="trash-2" size={22} color="#fff" />
+          <Icon name="trash-2" size={20} color="#fff" />
+          <Text style={styles.deleteActionText}>Delete</Text>
         </Pressable>
       )}
     >
@@ -248,7 +257,8 @@ const styles = StyleSheet.create({
   txAmount: { fontFamily: "Inter_700Bold", fontSize: 15 },
   sourceBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   sourceBadgeText: { fontFamily: "Inter_500Medium", fontSize: 10 },
-  deleteAction: { backgroundColor: Colors.expense, alignItems: "center", justifyContent: "center", width: 80, marginBottom: 8, borderRadius: 16 },
+  deleteAction: { backgroundColor: Colors.expense, alignItems: "center", justifyContent: "center", gap: 4, width: 88, marginBottom: 8, borderRadius: 16 },
+  deleteActionText: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: "#fff" },
   emptyState: { alignItems: "center", justifyContent: "center", paddingTop: 80, gap: 12 },
   emptyText: { fontFamily: "Inter_400Regular", fontSize: 15, color: Colors.textSecondary },
   fab: {

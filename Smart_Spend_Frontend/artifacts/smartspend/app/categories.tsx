@@ -45,6 +45,28 @@ export default function CategoriesScreen() {
 
   const filtered = categories.filter((c) => c.type === activeTab || c.type === "both");
 
+  const handleDelete = (id: string, name: string) => {
+    Alert.alert(
+      "Delete Category",
+      `Are you sure you want to delete "${name}"? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await categoriesApi.delete(id);
+              setCategories((prev) => prev.filter((c) => c.id !== id));
+            } catch {
+              Alert.alert("Error", "Failed to delete category. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleCreate = async () => {
     if (!newName.trim()) { Alert.alert("Validation", "Category name is required"); return; }
     setSaving(true);
@@ -114,8 +136,17 @@ export default function CategoriesScreen() {
         }
         renderItem={({ item }) => (
           <View style={styles.catCard}>
-            <View style={[styles.catIcon, { backgroundColor: item.color + "20" }]}>
-              <Text style={styles.catEmoji}>{item.icon}</Text>
+            <View style={styles.catCardTop}>
+              <View style={[styles.catIcon, { backgroundColor: item.color + "20" }]}>
+                <Text style={styles.catEmoji}>{item.icon}</Text>
+              </View>
+              <Pressable
+                style={styles.catDeleteBtn}
+                onPress={() => handleDelete(item.id, item.name)}
+                hitSlop={8}
+              >
+                <Icon name="trash-2" size={15} color={Colors.expense} />
+              </Pressable>
             </View>
             <Text style={styles.catName}>{item.name}</Text>
             <Text style={styles.catCount}>{item.transactionCount} items</Text>
@@ -234,7 +265,9 @@ const styles = StyleSheet.create({
   tabBtnTextActive: { color: "#fff" },
   grid: { paddingHorizontal: 20, paddingBottom: 100 },
   catCard: { flex: 1, backgroundColor: Colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.border, gap: 6 },
-  catIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  catCardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 },
+  catDeleteBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: Colors.expense + "15", alignItems: "center", justifyContent: "center" },
+  catIcon: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   catEmoji: { fontSize: 24 },
   catName: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text },
   catCount: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
