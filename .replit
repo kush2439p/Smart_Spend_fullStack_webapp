@@ -92,3 +92,10 @@ run = ["bash", "-c", "cd smartspend && mvn spring-boot:run & cd Smart_Spend_Fron
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
+
+[userenv]
+
+[userenv.shared]
+MYSQL_URL = "jdbc:mysql://mysql-2f284d93-kushv619-cf1e.a.aivencloud.com:23575/defaultdb?useSSL=true&requireSSL=true&verifyServerCertificate=false"
+MYSQL_USER = "avnadmin"
+DB_DRIVER = "com.mysql.cj.jdbc.Driver"
