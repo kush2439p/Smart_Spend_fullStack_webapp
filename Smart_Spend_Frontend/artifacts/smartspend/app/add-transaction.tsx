@@ -46,8 +46,13 @@ export default function AddTransactionScreen() {
   const filteredCats = categories.filter((c) => c.type === txType || c.type === "both");
 
   const handleSave = async () => {
-    if (!amount || !title || !selectedCategory) {
-      Alert.alert("Validation", "Please fill in amount, title, and category");
+    const parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert("Validation", "Please enter a valid amount greater than zero");
+      return;
+    }
+    if (!title || !selectedCategory) {
+      Alert.alert("Validation", "Please fill in title and category");
       return;
     }
     setSaving(true);
@@ -65,9 +70,7 @@ export default function AddTransactionScreen() {
       router.back();
     } catch {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert("Saved (Mock)", "Transaction will be saved when backend is connected.");
-      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
-      router.back();
+      Alert.alert("Error", "Failed to save transaction. Please try again.");
     } finally {
       setSaving(false);
     }

@@ -27,6 +27,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirmPass, setConfirmPass] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -150,8 +151,11 @@ export default function RegisterScreen() {
                 placeholderTextColor={Colors.textSecondary}
                 value={confirmPass}
                 onChangeText={setConfirmPass}
-                secureTextEntry={!showPass}
+                secureTextEntry={!showConfirmPass}
               />
+              <Pressable onPress={() => setShowConfirmPass(!showConfirmPass)} style={styles.eyeBtn}>
+                <Icon name={showConfirmPass ? "eye-off" : "eye"} size={18} color={Colors.textSecondary} />
+              </Pressable>
             </View>
           </View>
 

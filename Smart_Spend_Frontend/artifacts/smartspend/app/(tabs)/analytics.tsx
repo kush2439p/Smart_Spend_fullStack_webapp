@@ -22,7 +22,7 @@ import Svg, {
 } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router";
 import Icon from "@/components/Icon";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
