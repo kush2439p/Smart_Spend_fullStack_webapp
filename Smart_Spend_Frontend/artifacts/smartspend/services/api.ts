@@ -3,10 +3,13 @@ import * as Linking from "expo-linking";
 
 // ============================================================
 // BASE URL — used by the client to reach the backend API.
+// Priority: EXPO_PUBLIC_API_URL (production) → EXPO_PUBLIC_DOMAIN:8000 (Replit dev) → localhost
 // ============================================================
-export const BASE_URL = process.env.EXPO_PUBLIC_DOMAIN
-  ? `https://${process.env.EXPO_PUBLIC_DOMAIN}:8000/api`
-  : "http://localhost:8000/api";
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL
+  ? process.env.EXPO_PUBLIC_API_URL
+  : process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}:8000/api`
+    : "http://localhost:8000/api";
 
 // ============================================================
 // HTTP Helper
