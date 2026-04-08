@@ -79,10 +79,9 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Invalid email or password."));
 
-        // Email verification temporarily disabled — re-enable once Brevo is configured on Railway
-        // if (!user.isEmailVerified()) {
-        //     throw new RuntimeException("Please verify your email before logging in. Check your inbox or request a new verification email.");
-        // }
+        if (!user.isEmailVerified()) {
+            throw new RuntimeException("Please verify your email before logging in. Check your inbox or request a new verification email.");
+        }
 
         try {
             authenticationManager.authenticate(
