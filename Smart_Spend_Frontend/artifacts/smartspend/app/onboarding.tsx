@@ -63,20 +63,22 @@ export default function OnboardingScreen() {
         bounces={false}
       >
         <View style={styles.inner}>
-          <Animated.View style={[styles.logoContainer, { transform: [{ scale: logoScale }, { translateY: logoSlide }] }]}>
-            <View style={styles.logoIconBg}>
-              <Icon name="credit-card" size={44} color={Colors.primary} />
-            </View>
-            <Text style={styles.logoText}>SmartSpend</Text>
-            <Text style={styles.tagline}>Your money, fully automated</Text>
-          </Animated.View>
+          <View>
+            <Animated.View style={[styles.logoContainer, { transform: [{ scale: logoScale }, { translateY: logoSlide }] }]}>
+              <View style={styles.logoIconBg}>
+                <Icon name="credit-card" size={44} color={Colors.primary} />
+              </View>
+              <Text style={styles.logoText}>SmartSpend</Text>
+              <Text style={styles.tagline}>Your money, fully automated</Text>
+            </Animated.View>
 
-          <View style={styles.features}>
-            {FEATURES.map((f, i) => (
-              <Animated.View key={f.label} style={{ transform: [{ translateX: featureAnims[i] }] }}>
-                <FeatureRow icon={f.icon} label={f.label} color={f.color} bg={f.bg} />
-              </Animated.View>
-            ))}
+            <View style={styles.features}>
+              {FEATURES.map((f, i) => (
+                <Animated.View key={f.label} style={{ transform: [{ translateX: featureAnims[i] }] }}>
+                  <FeatureRow icon={f.icon} label={f.label} color={f.color} bg={f.bg} />
+                </Animated.View>
+              ))}
+            </View>
           </View>
 
           <Animated.View style={[styles.bottomSection, { transform: [{ translateY: btnSlide }] }]}>
@@ -120,13 +122,14 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     alignItems: "center",
-    justifyContent: "center",
   },
   inner: {
     width: "100%",
     maxWidth: 480,
     paddingHorizontal: 32,
     paddingVertical: 24,
+    flex: 1,
+    justifyContent: "space-between",
   },
 
   logoContainer: { alignItems: "center", marginBottom: 0 },
