@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -6,32 +6,42 @@ import {
   Pressable,
   StyleSheet,
   ScrollView,
+  FlatList,
   ActivityIndicator,
   Alert,
   Platform,
   PermissionsAndroid,
-  KeyboardAvoidingView,
   Animated,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "@/components/Icon";
-import * as Clipboard from "expo-clipboard";
 import { Colors } from "@/constants/colors";
-import { smsApi, transactionsApi } from "@/services/api";
+import { transactionsApi } from "@/services/api";
 import { useQueryClient } from "@tanstack/react-query";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface ParsedSms {
+  id: string;
   amount: number;
-  type: string;
+  type: "INCOME" | "EXPENSE";
   merchant: string;
   suggestedCategory: string;
   date: string;
   rawText: string;
 }
 
-type PermissionState = "unknown" | "requesting" | "granted" | "denied" | "unavailable";
+type PermState = "unknown" | "requesting" | "granted" | "denied" | "unavailable";
+type ScanState = "idle" | "scanning" | "results" | "saving";
 
+// ── Native module loaders (safe — never crash) ─────────────────────────────
+let SmsAndroid: any = null;
+try { SmsAndroid = require("react-native-get-sms-android"); } catch { SmsAndroid = null; }
+
+let SmsListener: any = null;
+try { SmsListener = require("react-native-android-sms-listener").default; } catch { SmsListener = null; }
+
+// ── Bank SMS detection ─────────────────────────────────────────────────────
 const BANK_KEYWORDS = [
   "debited", "credited", "rs.", "rs ", "inr", "₹",
   "upi", "phonepe", "gpay", "paytm", "hdfc", "sbi",
@@ -41,94 +51,120 @@ const BANK_KEYWORDS = [
 ];
 
 function looksLikeBankSMS(text: string): boolean {
-  if (!text || text.length < 20) return false;
+  if (!text || text.length < 15) return false;
   const lower = text.toLowerCase();
-  const matchCount = BANK_KEYWORDS.filter((k) => lower.includes(k)).length;
-  return matchCount >= 2;
+  return BANK_KEYWORDS.filter((k) => lower.includes(k)).length >= 2;
 }
 
-// Try to load the native SMS listener — gracefully fails in Expo Go
-let SmsListener: any = null;
-try {
-  SmsListener = require("react-native-android-sms-listener").default;
-} catch {
-  SmsListener = null;
+// ── Client-side SMS parser (fast, no API call needed for bulk) ─────────────
+function parseSmsFast(text: string, idx: number): ParsedSms | null {
+  let amount = 0;
+  const amountPatterns = [
+    /(?:rs\.?|inr|₹)\s*([\d,]+\.?\d*)/i,
+    /([\d,]+\.?\d*)\s*(?:debited|credited|deducted|paid)/i,
+    /([\d,]+\.\d{2})/,
+  ];
+  for (const p of amountPatterns) {
+    const m = text.match(p);
+    if (m) { amount = parseFloat(m[1].replace(/,/g, "")); if (amount > 0) break; }
+  }
+  if (amount <= 0) return null;
+
+  const lower = text.toLowerCase();
+  const type: "INCOME" | "EXPENSE" =
+    /credited|received|deposited|refund|cashback|salary/.test(lower) ? "INCOME" : "EXPENSE";
+
+  let merchant = "Unknown";
+  const merchantPatterns = [
+    /(?:to|at)\s+([A-Za-z][A-Za-z0-9\s&'.,-]{2,40}?)(?:\s+on|\s+for|\.|\,|\s+via|$)/i,
+    /vpa\s+([\w.@-]+)/i,
+    /([\w.]+@[\w.]+)/,
+  ];
+  for (const p of merchantPatterns) {
+    const m = text.match(p);
+    if (m) { merchant = m[1].trim(); break; }
+  }
+
+  const categories: Record<string, string[]> = {
+    Food: ["zomato", "swiggy", "restaurant", "food", "cafe", "coffee", "pizza", "burger", "biryani"],
+    Transport: ["uber", "ola", "rapido", "petrol", "fuel", "metro", "irctc", "redbus", "flight", "cab"],
+    Shopping: ["amazon", "flipkart", "myntra", "ajio", "mall", "shop", "market"],
+    Healthcare: ["pharmacy", "medical", "hospital", "clinic", "doctor", "apollo", "medplus"],
+    Utilities: ["electricity", "bescom", "internet", "jio", "airtel", "vodafone", "gas", "lpg", "water"],
+    Entertainment: ["netflix", "hotstar", "spotify", "bookmyshow", "cinema", "movie", "pvr"],
+    Salary: ["salary", "wage", "payroll", "stipend"],
+    Travel: ["hotel", "makemytrip", "goibibo", "oyo", "airbnb", "travel"],
+  };
+  let suggestedCategory = "Other";
+  const searchText = (merchant + " " + text).toLowerCase();
+  for (const [cat, kws] of Object.entries(categories)) {
+    if (kws.some((k) => searchText.includes(k))) { suggestedCategory = cat; break; }
+  }
+
+  let date = new Date().toISOString().split("T")[0];
+  const datePatterns = [/(\d{2}[-\/]\d{2}[-\/]\d{4})/, /(\d{4}-\d{2}-\d{2})/];
+  for (const p of datePatterns) {
+    const m = text.match(p);
+    if (m) {
+      try {
+        const d = new Date(m[1].replace(/(\d{2})\/(\d{2})\/(\d{4})/, "$3-$2-$1"));
+        if (!isNaN(d.getTime())) { date = d.toISOString().split("T")[0]; break; }
+      } catch {}
+    }
+  }
+
+  return {
+    id: `sms_${idx}_${Date.now()}`,
+    amount,
+    type,
+    merchant,
+    suggestedCategory,
+    date,
+    rawText: text.substring(0, 100),
+  };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// Main Screen
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function SmsScannerScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
-  const [permState, setPermState] = useState<PermissionState>("unknown");
-  const [listening, setListening] = useState(false);
+  const [permState, setPermState] = useState<PermState>("unknown");
+  const [scanState, setScanState] = useState<ScanState>("idle");
+  const [detected, setDetected] = useState<ParsedSms[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [smsText, setSmsText] = useState("");
-  const [parsing, setParsing] = useState(false);
-  const [parsed, setParsed] = useState<ParsedSms | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [source, setSource] = useState<"sms" | "clipboard" | null>(null);
-  const [lastClipboard, setLastClipboard] = useState("");
+  const [manualParsed, setManualParsed] = useState<ParsedSms | null>(null);
+  const [manualParsing, setManualParsing] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
 
-  // Use a ref so callbacks don't go stale when parsing changes
-  const parsingRef = useRef(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const smsSubscription = useRef<any>(null);
+  const smsListenerSub = useRef<any>(null);
 
-  // Pulse animation while waiting/listening
+  // ── Pulse animation ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!listening && permState !== "requesting") return;
+    if (scanState !== "scanning") return;
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 0.35, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
       ])
     );
     loop.start();
     return () => loop.stop();
-  }, [listening, permState, pulseAnim]);
+  }, [scanState]);
 
-  const doParseAndSave = useCallback(
-    async (text: string, src: "sms" | "clipboard") => {
-      if (!text.trim() || parsingRef.current) return;
-      parsingRef.current = true;
-      setSource(src);
-      setParsing(true);
-      setParsed(null);
-      setSmsText(text);
-      try {
-        const result = await smsApi.parse(text.trim(), new Date().toISOString());
-        setParsed(result as unknown as ParsedSms);
-      } catch (err: any) {
-        Alert.alert(
-          "Parse Error",
-          "Could not read this SMS. Make sure it is a bank or UPI transaction message."
-        );
-      } finally {
-        parsingRef.current = false;
-        setParsing(false);
-      }
-    },
-    []
-  );
-
-  // ── REQUEST PERMISSIONS ─────────────────────────────────────────────────────
+  // ── Request permissions ──────────────────────────────────────────────────
   const requestPermissions = useCallback(async () => {
-    if (Platform.OS !== "android") {
-      setPermState("unavailable");
-      return;
-    }
+    if (Platform.OS !== "android") { setPermState("unavailable"); return; }
     setPermState("requesting");
     try {
-      const permPromise = PermissionsAndroid.requestMultiple([
+      const results = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
         PermissionsAndroid.PERMISSIONS.READ_SMS,
       ]);
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
-      const results = await Promise.race([permPromise, timeoutPromise]);
-      if (!results) {
-        // Timed out — fall back gracefully
-        setPermState("unavailable");
-        return;
-      }
       const granted =
         results["android.permission.RECEIVE_SMS"] === PermissionsAndroid.RESULTS.GRANTED &&
         results["android.permission.READ_SMS"] === PermissionsAndroid.RESULTS.GRANTED;
@@ -138,406 +174,432 @@ export default function SmsScannerScreen() {
     }
   }, []);
 
-  // ── AUTO-REQUEST ON MOUNT (Android only) ────────────────────────────────────
   useEffect(() => {
-    if (Platform.OS === "android") {
-      requestPermissions();
-    } else {
-      setPermState("unavailable");
+    if (Platform.OS === "android") requestPermissions();
+    else setPermState("unavailable");
+  }, []);
+
+  // ── Live SMS listener (for new incoming SMS while screen is open) ────────
+  useEffect(() => {
+    if (permState !== "granted" || !SmsListener) return;
+    try {
+      smsListenerSub.current = SmsListener.onSmsReceived((msg: { body: string }) => {
+        if (!msg?.body || !looksLikeBankSMS(msg.body)) return;
+        const parsed = parseSmsFast(msg.body, Date.now());
+        if (parsed) {
+          setDetected((prev) => {
+            const next = [parsed, ...prev];
+            setSelected((s) => { const ns = new Set(s); ns.add(parsed.id); return ns; });
+            setScanState("results");
+            return next;
+          });
+        }
+      });
+    } catch (e) {
+      // SmsListener failed silently — bulk scan still works
+    }
+    return () => {
+      try { smsListenerSub.current?.remove?.(); } catch {}
+      smsListenerSub.current = null;
+    };
+  }, [permState]);
+
+  // ── BULK SCAN ────────────────────────────────────────────────────────────
+  const scanAllSms = useCallback(() => {
+    if (!SmsAndroid) {
+      Alert.alert(
+        "Not Supported",
+        "Inbox scanning requires the full Android APK build. Please use manual paste below.",
+      );
+      return;
+    }
+    setScanState("scanning");
+    setDetected([]);
+    setSelected(new Set());
+
+    try {
+      SmsAndroid.list(
+        JSON.stringify({ box: "inbox", maxCount: 500 }),
+        (err: string) => {
+          console.warn("SMS read error:", err);
+          setScanState("idle");
+          Alert.alert("Read Failed", "Could not read SMS. Make sure READ_SMS permission is granted.");
+        },
+        (_count: number, smsList: string) => {
+          try {
+            const arr: { body: string; date: number }[] = JSON.parse(smsList);
+            const bankSms = arr.filter((s) => looksLikeBankSMS(s.body || ""));
+            const parsed: ParsedSms[] = [];
+            bankSms.forEach((s, i) => {
+              const result = parseSmsFast(s.body, i);
+              if (result) {
+                // Override date with actual SMS date if available
+                if (s.date) {
+                  const d = new Date(s.date);
+                  if (!isNaN(d.getTime())) result.date = d.toISOString().split("T")[0];
+                }
+                parsed.push(result);
+              }
+            });
+
+            if (parsed.length === 0) {
+              setScanState("idle");
+              Alert.alert("No Transactions Found", "No bank or UPI transaction messages were found in your inbox.");
+              return;
+            }
+
+            setDetected(parsed);
+            setSelected(new Set(parsed.map((p) => p.id)));
+            setScanState("results");
+          } catch (e) {
+            setScanState("idle");
+            Alert.alert("Parse Error", "Could not process SMS messages. Please try manual paste.");
+          }
+        },
+      );
+    } catch (e) {
+      setScanState("idle");
+      Alert.alert("Error", "SMS scanner is not available on this device.");
     }
   }, []);
 
-  // ── REAL-TIME SMS LISTENER (needs native build) ─────────────────────────────
-  useEffect(() => {
-    if (permState !== "granted") return;
-    if (!SmsListener) return; // Expo Go — will use clipboard fallback
-
-    setListening(true);
-    smsSubscription.current = SmsListener.onSmsReceived((message: { body: string; originatingAddress: string }) => {
-      const body = message.body || "";
-      if (looksLikeBankSMS(body)) {
-        doParseAndSave(body, "sms");
+  // ── Manual parse (single SMS paste) ─────────────────────────────────────
+  const handleManualParse = useCallback(async () => {
+    if (!smsText.trim()) { Alert.alert("Empty", "Please paste an SMS first."); return; }
+    setManualParsing(true);
+    setManualParsed(null);
+    try {
+      const parsed = parseSmsFast(smsText.trim(), 0);
+      if (!parsed || parsed.amount <= 0) {
+        Alert.alert("Not a Transaction", "This doesn't look like a bank/UPI transaction SMS. Please try a different message.");
+        return;
       }
+      setManualParsed(parsed);
+    } catch {
+      Alert.alert("Error", "Could not parse this SMS. Try a different message.");
+    } finally {
+      setManualParsing(false);
+    }
+  }, [smsText]);
+
+  // ── Toggle selection ─────────────────────────────────────────────────────
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
+  };
 
-    return () => {
-      if (smsSubscription.current) {
-        smsSubscription.current.remove();
-        smsSubscription.current = null;
-      }
-      setListening(false);
-    };
-  }, [permState, doParseAndSave]);
-
-  // ── CLIPBOARD FALLBACK (Expo Go or permission denied) ──────────────────────
-  useEffect(() => {
-    // Only use clipboard if: native listener not available OR permission denied
-    const useClipboard =
-      permState === "unavailable" ||
-      permState === "denied" ||
-      (permState === "granted" && !SmsListener);
-
-    if (!useClipboard) return;
-
-    const poll = async () => {
+  // ── Import selected transactions ─────────────────────────────────────────
+  const importSelected = async () => {
+    const toImport = detected.filter((d) => selected.has(d.id));
+    if (toImport.length === 0) { Alert.alert("Nothing Selected", "Tap transactions to select them."); return; }
+    setScanState("saving");
+    let saved = 0;
+    for (const tx of toImport) {
       try {
-        const text = await Clipboard.getStringAsync();
-        if (text && text !== lastClipboard && looksLikeBankSMS(text)) {
-          setLastClipboard(text);
-          doParseAndSave(text, "clipboard");
-        }
-      } catch {
-        // fail silently
-      }
-    };
+        await transactionsApi.create({
+          title: tx.merchant !== "Unknown" ? tx.merchant : "Transaction",
+          amount: tx.amount,
+          type: tx.type === "INCOME" ? "income" : "expense",
+          category: tx.suggestedCategory || "Other",
+          date: new Date(tx.date).toISOString(),
+          note: "Imported from SMS",
+        });
+        saved++;
+      } catch {}
+    }
+    setScanState("results");
+    setSavedCount(saved);
+    queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    // Remove saved items from list
+    const importedIds = new Set(toImport.map((t) => t.id));
+    setDetected((prev) => prev.filter((d) => !importedIds.has(d.id)));
+    setSelected(new Set());
+    Alert.alert(
+      "Done! 🎉",
+      `${saved} transaction${saved !== 1 ? "s" : ""} imported successfully.`,
+      [{ text: "Go to Dashboard", onPress: () => router.replace("/(tabs)") }, { text: "Stay" }],
+    );
+  };
 
-    poll();
-    const interval = setInterval(poll, 1200);
-    return () => clearInterval(interval);
-  }, [permState, lastClipboard, doParseAndSave]);
-
-  // ── SAVE ───────────────────────────────────────────────────────────────────
-  const handleSave = async () => {
-    if (!parsed) return;
-    setSaving(true);
+  // ── Save single manual parse ─────────────────────────────────────────────
+  const saveManual = async () => {
+    if (!manualParsed) return;
     try {
       await transactionsApi.create({
-        title:
-          parsed.merchant && parsed.merchant !== "Unknown"
-            ? parsed.merchant
-            : "Transaction",
-        amount: parsed.amount,
-        type: parsed.type === "INCOME" ? "income" : "expense",
-        category: parsed.suggestedCategory || "Other",
-        date: parsed.date
-          ? new Date(parsed.date).toISOString()
-          : new Date().toISOString(),
-        note: `Auto-detected from ${source === "sms" ? "SMS" : "clipboard"}`,
+        title: manualParsed.merchant !== "Unknown" ? manualParsed.merchant : "Transaction",
+        amount: manualParsed.amount,
+        type: manualParsed.type === "INCOME" ? "income" : "expense",
+        category: manualParsed.suggestedCategory || "Other",
+        date: new Date(manualParsed.date).toISOString(),
+        note: "Imported from SMS (manual)",
       });
       queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      Alert.alert("Saved!", "Transaction added to your expenses.", [
+      Alert.alert("Saved!", "Transaction added.", [
         { text: "Done", onPress: () => router.back() },
-        { text: "Scan Another", onPress: reset },
+        { text: "Scan Another", onPress: () => { setSmsText(""); setManualParsed(null); } },
       ]);
     } catch {
-      Alert.alert("Error", "Could not save the transaction. Please try again.");
-    } finally {
-      setSaving(false);
+      Alert.alert("Error", "Could not save. Please try again.");
     }
   };
 
-  const reset = () => {
-    setSmsText("");
-    setParsed(null);
-    setSource(null);
-  };
-
-  // ── MANUAL PARSE ──────────────────────────────────────────────────────────
-  const handleManualParse = () => {
-    if (!smsText.trim()) {
-      Alert.alert("Empty", "Please paste an SMS message first.");
-      return;
-    }
-    doParseAndSave(smsText, "clipboard");
-  };
-
-  // ── RENDER HELPERS ─────────────────────────────────────────────────────────
-  const renderPermissionCard = () => (
-    <View style={styles.centreCard}>
-      <View style={styles.iconCircle}>
-        <Icon name="message-square" size={36} color={Colors.primary} />
+  // ── Render: permission state ─────────────────────────────────────────────
+  if (permState === "unknown" || permState === "requesting") {
+    return (
+      <View style={[styles.container, styles.centreBox]}>
+        <ActivityIndicator color={Colors.primary} size="large" />
+        <Text style={styles.hint}>Requesting SMS permission…</Text>
       </View>
-      <Text style={styles.cardTitle}>Allow SMS Access</Text>
-      <Text style={styles.cardSub}>
-        SmartSpend needs permission to read your incoming messages so it can
-        automatically detect payment transactions — no manual steps needed.
-      </Text>
-      <View style={styles.benefitList}>
-        {[
-          "Instant detection when payment SMS arrives",
-          "Works with any bank, UPI app, or wallet",
-          "Your messages are never stored or sent anywhere",
-        ].map((b, i) => (
-          <View key={i} style={styles.benefitRow}>
-            <Icon name="check" size={15} color={Colors.income} />
-            <Text style={styles.benefitText}>{b}</Text>
-          </View>
-        ))}
-      </View>
-      <Pressable style={styles.primaryBtn} onPress={requestPermissions}>
-        <Icon name="shield" size={18} color="#fff" />
-        <Text style={styles.primaryBtnText}>Allow Message Access</Text>
-      </Pressable>
-    </View>
-  );
-
-  const renderDeniedCard = () => (
-    <View style={styles.centreCard}>
-      <View style={[styles.iconCircle, { backgroundColor: Colors.expense + "15" }]}>
-        <Icon name="slash" size={32} color={Colors.expense} />
-      </View>
-      <Text style={styles.cardTitle}>Permission Denied</Text>
-      <Text style={styles.cardSub}>
-        SMS permission was not granted. You can still paste a payment SMS below
-        and SmartSpend will parse it for you.
-      </Text>
-      <Pressable style={styles.primaryBtn} onPress={requestPermissions}>
-        <Icon name="refresh-cw" size={16} color="#fff" />
-        <Text style={styles.primaryBtnText}>Ask Again</Text>
-      </Pressable>
-      <ManualInput
-        smsText={smsText}
-        onChangeText={(t) => { setSmsText(t); setParsed(null); }}
-        onClear={reset}
-        onParse={handleManualParse}
-        parsing={parsing}
-      />
-    </View>
-  );
-
-  const renderListeningCard = () => (
-    <View style={styles.centreCard}>
-      <Animated.View style={[styles.iconCircle, { opacity: pulseAnim, backgroundColor: Colors.income + "18" }]}>
-        <Icon name="radio" size={36} color={Colors.income} />
-      </Animated.View>
-      <Text style={styles.cardTitle}>Listening for Payments</Text>
-      <Text style={styles.cardSub}>
-        SmartSpend is monitoring your incoming messages.{"\n"}Make a payment — it will be detected automatically.
-      </Text>
-      <View style={styles.liveChip}>
-        <View style={styles.liveDot} />
-        <Text style={styles.liveText}>Live</Text>
-      </View>
-      <View style={styles.supportedRow}>
-        {["PhonePe", "GPay", "Paytm", "HDFC", "SBI", "ICICI", "Axis", "NEFT"].map((b) => (
-          <View key={b} style={styles.bankChip}>
-            <Text style={styles.bankChipText}>{b}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderClipboardFallback = () => (
-    <View style={styles.centreCard}>
-      <Animated.View style={[styles.iconCircle, { opacity: pulseAnim }]}>
-        <Icon name="message-square" size={36} color={Colors.primary} />
-      </Animated.View>
-      <Text style={styles.cardTitle}>Clipboard Detection Active</Text>
-      <Text style={styles.cardSub}>
-        Full SMS auto-reading needs a native app build. Until then, open your
-        Messages app, <Text style={styles.bold}>copy</Text> any payment SMS and
-        come back — it will be detected instantly.
-      </Text>
-      <View style={styles.infoBox}>
-        <Icon name="info" size={14} color={Colors.primary} />
-        <Text style={styles.infoBoxText}>
-          For true background SMS reading, build the Android APK from this project.
-        </Text>
-      </View>
-      <ManualInput
-        smsText={smsText}
-        onChangeText={(t) => { setSmsText(t); setParsed(null); }}
-        onClear={reset}
-        onParse={handleManualParse}
-        parsing={parsing}
-      />
-    </View>
-  );
-
-  const renderBody = () => {
-    if (parsed) return null; // result card shown below
-
-    switch (permState) {
-      case "unknown":
-      case "requesting":
-        return (
-          <View style={styles.centreCard}>
-            <ActivityIndicator color={Colors.primary} size="large" />
-            <Text style={[styles.cardSub, { marginTop: 16, textAlign: "center" }]}>
-              Requesting SMS permission…
-            </Text>
-            <ManualInput
-              smsText={smsText}
-              onChangeText={(t) => { setSmsText(t); setParsed(null); }}
-              onClear={reset}
-              onParse={handleManualParse}
-              parsing={parsing}
-            />
-          </View>
-        );
-      case "granted":
-        return SmsListener ? renderListeningCard() : renderClipboardFallback();
-      case "denied":
-        return renderDeniedCard();
-      case "unavailable":
-        return renderClipboardFallback();
-    }
-  };
+    );
+  }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Icon name="arrow-left" size={22} color={Colors.text} />
-          </Pressable>
-          <Text style={styles.headerTitle}>SMS Scanner</Text>
-          <View style={{ width: 40 }} />
-        </View>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Icon name="arrow-left" size={22} color={Colors.text} />
+        </Pressable>
+        <Text style={styles.headerTitle}>SMS Scanner</Text>
+        <View style={{ width: 40 }} />
+      </View>
 
-        {/* Detecting banner (while parsing) */}
-        {parsing && (
-          <View style={styles.detectCard}>
-            <Icon name="zap" size={18} color={Colors.primary} />
-            <Text style={styles.detectText}>
-              {source === "sms" ? "Payment SMS received — analysing…" : "SMS detected — analysing…"}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 48, paddingHorizontal: 20 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Denied / Unavailable banner */}
+        {(permState === "denied" || permState === "unavailable") && (
+          <View style={styles.warningCard}>
+            <Icon name="alert-triangle" size={18} color="#E65100" />
+            <Text style={styles.warningText}>
+              {permState === "denied"
+                ? "SMS permission denied. Go to Settings → Apps → SmartSpend → Permissions and enable SMS, then come back."
+                : "SMS reading is only available on Android with a native APK build."}
             </Text>
-            <ActivityIndicator color={Colors.primary} size="small" />
           </View>
         )}
 
-        {/* Body (permission state / listening / fallback) */}
-        {renderBody()}
+        {/* Saved count badge */}
+        {savedCount > 0 && (
+          <View style={styles.successBanner}>
+            <Icon name="check-circle" size={16} color={Colors.income} />
+            <Text style={styles.successText}>{savedCount} transaction{savedCount !== 1 ? "s" : ""} imported this session</Text>
+          </View>
+        )}
 
-        {/* Result Card */}
-        {parsed && !parsing && (
-          <View style={styles.reviewCard}>
-            <View style={styles.reviewHeader}>
-              <View style={styles.reviewHeaderLeft}>
-                <Icon name="check-circle" size={16} color={Colors.income} />
-                <Text style={styles.reviewHeaderText}>Details Extracted</Text>
-              </View>
-              <View style={[
-                styles.typeBadge,
-                { backgroundColor: parsed.type === "INCOME" ? Colors.income + "18" : Colors.expense + "18" },
-              ]}>
-                <Text style={[
-                  styles.typeBadgeText,
-                  { color: parsed.type === "INCOME" ? Colors.income : Colors.expense },
-                ]}>
-                  {parsed.type === "INCOME" ? "Income" : "Expense"}
-                </Text>
+        {/* Main scan card */}
+        {permState === "granted" && scanState === "idle" && (
+          <View style={styles.card}>
+            <View style={styles.iconCircle}>
+              <Icon name="message-square" size={36} color={Colors.primary} />
+            </View>
+            <Text style={styles.cardTitle}>Scan Your Messages</Text>
+            <Text style={styles.cardSub}>
+              SmartSpend will scan your inbox for UPI, bank, and wallet messages and automatically detect all your transactions.
+            </Text>
+            <View style={styles.featureList}>
+              {[
+                "Reads PhonePe, GPay, Paytm, HDFC, SBI, ICICI & more",
+                "Detects credits and debits automatically",
+                "You choose which ones to import",
+              ].map((f, i) => (
+                <View key={i} style={styles.featureRow}>
+                  <Icon name="check" size={14} color={Colors.income} />
+                  <Text style={styles.featureText}>{f}</Text>
+                </View>
+              ))}
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.primaryBtn, { opacity: pressed ? 0.85 : 1 }]}
+              onPress={SmsAndroid ? scanAllSms : () => Alert.alert("APK Required", "Inbox scanning requires the full Android APK build. Use manual paste below.")}
+            >
+              <Icon name="search" size={18} color="#fff" />
+              <Text style={styles.primaryBtnText}>Scan All Messages</Text>
+            </Pressable>
+            {!SmsAndroid && (
+              <Text style={styles.apkNote}>
+                Full inbox scan requires the Android APK build. Use manual paste below in Expo Go.
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Scanning state */}
+        {scanState === "scanning" && (
+          <View style={styles.card}>
+            <Animated.View style={[styles.iconCircle, { opacity: pulseAnim }]}>
+              <Icon name="search" size={36} color={Colors.primary} />
+            </Animated.View>
+            <Text style={styles.cardTitle}>Scanning Messages…</Text>
+            <Text style={styles.cardSub}>Reading your inbox and detecting bank transactions. This takes a moment.</Text>
+            <ActivityIndicator color={Colors.primary} size="large" style={{ marginTop: 8 }} />
+          </View>
+        )}
+
+        {/* Results */}
+        {scanState === "results" && detected.length > 0 && (
+          <>
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsTitle}>{detected.length} transaction{detected.length !== 1 ? "s" : ""} found</Text>
+              <View style={styles.resultsActions}>
+                <Pressable onPress={() => setSelected(new Set(detected.map((d) => d.id)))}>
+                  <Text style={styles.selectAllText}>All</Text>
+                </Pressable>
+                <Text style={{ color: Colors.textSecondary }}> · </Text>
+                <Pressable onPress={() => setSelected(new Set())}>
+                  <Text style={styles.selectAllText}>None</Text>
+                </Pressable>
               </View>
             </View>
 
-            {source && (
-              <View style={styles.sourceBadge}>
-                <Icon
-                  name={source === "sms" ? "radio" : "clipboard"}
-                  size={12}
-                  color={Colors.textSecondary}
-                />
-                <Text style={styles.sourceText}>
-                  {source === "sms" ? "Detected from incoming SMS" : "Detected from clipboard"}
-                </Text>
-              </View>
-            )}
-
-            <ReviewRow label="Merchant / Payee" value={parsed.merchant || "Unknown"} icon="user" />
-            <ReviewRow
-              label="Amount"
-              value={`₹${Number(parsed.amount).toFixed(2)}`}
-              icon="credit-card"
-              valueColor={parsed.type === "INCOME" ? Colors.income : Colors.expense}
-            />
-            <ReviewRow label="Category" value={parsed.suggestedCategory || "Other"} icon="grid" />
-            <ReviewRow
-              label="Date"
-              value={parsed.date ? new Date(parsed.date).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN")}
-              icon="calendar"
-            />
+            {detected.map((item) => (
+              <Pressable
+                key={item.id}
+                style={[styles.txCard, selected.has(item.id) && styles.txCardSelected]}
+                onPress={() => toggleSelect(item.id)}
+              >
+                <View style={styles.txCheck}>
+                  <View style={[styles.checkbox, selected.has(item.id) && styles.checkboxChecked]}>
+                    {selected.has(item.id) && <Icon name="check" size={12} color="#fff" />}
+                  </View>
+                </View>
+                <View style={styles.txInfo}>
+                  <Text style={styles.txMerchant} numberOfLines={1}>{item.merchant}</Text>
+                  <Text style={styles.txRaw} numberOfLines={1}>{item.rawText}</Text>
+                  <Text style={styles.txMeta}>{item.suggestedCategory} · {item.date}</Text>
+                </View>
+                <View style={styles.txRight}>
+                  <Text style={[styles.txAmount, { color: item.type === "INCOME" ? Colors.income : Colors.expense }]}>
+                    {item.type === "INCOME" ? "+" : "-"}₹{item.amount.toFixed(0)}
+                  </Text>
+                  <View style={[styles.typeBadge, { backgroundColor: item.type === "INCOME" ? Colors.income + "18" : Colors.expense + "18" }]}>
+                    <Text style={[styles.typeBadgeText, { color: item.type === "INCOME" ? Colors.income : Colors.expense }]}>
+                      {item.type === "INCOME" ? "Credit" : "Debit"}
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+            ))}
 
             <Pressable
-              style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-              onPress={handleSave}
-              disabled={saving}
+              style={[styles.importBtn, (scanState === "saving" || selected.size === 0) && styles.importBtnDisabled]}
+              onPress={importSelected}
+              disabled={scanState === "saving" || selected.size === 0}
             >
-              {saving ? (
+              {scanState === "saving" ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Icon name="plus-circle" size={18} color="#fff" />
-                  <Text style={styles.saveBtnText}>Save Transaction</Text>
+                  <Icon name="download" size={18} color="#fff" />
+                  <Text style={styles.importBtnText}>
+                    Import {selected.size} Selected Transaction{selected.size !== 1 ? "s" : ""}
+                  </Text>
                 </>
               )}
             </Pressable>
 
-            <Pressable style={styles.tryAnotherBtn} onPress={reset}>
-              <Text style={styles.tryAnotherText}>Scan Another SMS</Text>
+            <Pressable
+              style={styles.rescanBtn}
+              onPress={() => { setScanState("idle"); setDetected([]); setSelected(new Set()); }}
+            >
+              <Text style={styles.rescanText}>Scan Again</Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* No results after scan */}
+        {scanState === "results" && detected.length === 0 && (
+          <View style={styles.card}>
+            <Icon name="inbox" size={36} color={Colors.textSecondary} style={{ marginBottom: 12 }} />
+            <Text style={styles.cardTitle}>All Done!</Text>
+            <Text style={styles.cardSub}>All detected transactions have been imported.</Text>
+            <Pressable style={styles.primaryBtn} onPress={() => { setScanState("idle"); setDetected([]); }}>
+              <Text style={styles.primaryBtnText}>Scan Again</Text>
             </Pressable>
           </View>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-}
 
-// ── Manual paste input sub-component ──────────────────────────────────────────
-function ManualInput({
-  smsText, onChangeText, onClear, onParse, parsing,
-}: {
-  smsText: string;
-  onChangeText: (t: string) => void;
-  onClear: () => void;
-  onParse: () => void;
-  parsing: boolean;
-}) {
-  return (
-    <View style={{ width: "100%", marginTop: 20 }}>
-      <Text style={styles.label}>Or paste SMS manually</Text>
-      <TextInput
-        style={styles.smsInput}
-        multiline
-        numberOfLines={5}
-        placeholder={"e.g.\nDebited ₹250.00 from A/C XX1234 to Swiggy on 04-04-2026. Ref No. 123456789"}
-        placeholderTextColor={Colors.textSecondary}
-        value={smsText}
-        onChangeText={onChangeText}
-        textAlignVertical="top"
-      />
-      {smsText.length > 0 && (
-        <Pressable style={styles.clearBtn} onPress={onClear}>
-          <Icon name="x-circle" size={15} color={Colors.textSecondary} />
-          <Text style={styles.clearText}>Clear</Text>
-        </Pressable>
-      )}
-      <Pressable
-        style={[styles.parseBtn, (!smsText.trim() || parsing) && styles.parseBtnDisabled]}
-        onPress={onParse}
-        disabled={!smsText.trim() || parsing}
-      >
-        {parsing ? (
-          <ActivityIndicator color="#fff" size="small" />
-        ) : (
-          <>
-            <Icon name="zap" size={17} color="#fff" />
-            <Text style={styles.parseBtnText}>Extract Details</Text>
-          </>
-        )}
-      </Pressable>
+        {/* ── Manual paste section ────────────────────────────────────────── */}
+        <View style={styles.dividerRow}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>Or paste a single SMS</Text>
+          <View style={styles.divider} />
+        </View>
+
+        <View style={styles.manualCard}>
+          <TextInput
+            style={styles.smsInput}
+            multiline
+            numberOfLines={5}
+            placeholder={"e.g.\nDebited ₹250.00 from A/C XX1234 to Swiggy on 04-04-2026. Ref No. 123456"}
+            placeholderTextColor={Colors.textSecondary}
+            value={smsText}
+            onChangeText={(t) => { setSmsText(t); setManualParsed(null); }}
+            textAlignVertical="top"
+          />
+
+          {smsText.length > 0 && (
+            <Pressable style={styles.clearBtn} onPress={() => { setSmsText(""); setManualParsed(null); }}>
+              <Icon name="x-circle" size={14} color={Colors.textSecondary} />
+              <Text style={styles.clearText}>Clear</Text>
+            </Pressable>
+          )}
+
+          <Pressable
+            style={[styles.parseBtn, (!smsText.trim() || manualParsing) && styles.parseBtnDisabled]}
+            onPress={handleManualParse}
+            disabled={!smsText.trim() || manualParsing}
+          >
+            {manualParsing ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Icon name="zap" size={16} color="#fff" />
+                <Text style={styles.parseBtnText}>Extract Details</Text>
+              </>
+            )}
+          </Pressable>
+
+          {manualParsed && (
+            <View style={styles.manualResult}>
+              <View style={styles.reviewHeader}>
+                <Icon name="check-circle" size={15} color={Colors.income} />
+                <Text style={styles.reviewHeaderText}>Transaction Detected</Text>
+                <View style={[styles.typeBadge, { backgroundColor: manualParsed.type === "INCOME" ? Colors.income + "18" : Colors.expense + "18" }]}>
+                  <Text style={[styles.typeBadgeText, { color: manualParsed.type === "INCOME" ? Colors.income : Colors.expense }]}>
+                    {manualParsed.type === "INCOME" ? "Credit" : "Debit"}
+                  </Text>
+                </View>
+              </View>
+              <ReviewRow icon="user" label="Merchant" value={manualParsed.merchant} />
+              <ReviewRow icon="credit-card" label="Amount" value={`₹${manualParsed.amount.toFixed(2)}`} valueColor={manualParsed.type === "INCOME" ? Colors.income : Colors.expense} />
+              <ReviewRow icon="grid" label="Category" value={manualParsed.suggestedCategory} />
+              <ReviewRow icon="calendar" label="Date" value={new Date(manualParsed.date).toLocaleDateString("en-IN")} />
+              <Pressable style={styles.saveBtn} onPress={saveManual}>
+                <Icon name="plus-circle" size={17} color="#fff" />
+                <Text style={styles.saveBtnText}>Save Transaction</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
-// ── Review row ─────────────────────────────────────────────────────────────────
-function ReviewRow({
-  label, value, icon, valueColor,
-}: { label: string; value: string; icon: string; valueColor?: string }) {
+// ── Sub-components ─────────────────────────────────────────────────────────
+function ReviewRow({ icon, label, value, valueColor }: { icon: string; label: string; value: string; valueColor?: string }) {
   return (
     <View style={styles.reviewRow}>
-      <View style={styles.reviewRowLeft}>
-        <Icon name={icon as any} size={14} color={Colors.textSecondary} />
+      <View style={styles.reviewLeft}>
+        <Icon name={icon as any} size={13} color={Colors.textSecondary} />
         <Text style={styles.reviewLabel}>{label}</Text>
       </View>
       <Text style={[styles.reviewValue, valueColor ? { color: valueColor } : {}]}>{value}</Text>
@@ -545,134 +607,125 @@ function ReviewRow({
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
+// ── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  centreBox: { alignItems: "center", justifyContent: "center", gap: 16 },
+  hint: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
+
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 20, paddingVertical: 16,
+    paddingHorizontal: 20, paddingVertical: 14,
   },
-  backBtn: {
-    padding: 8, backgroundColor: Colors.card, borderRadius: 12,
-    borderWidth: 1, borderColor: Colors.border,
-  },
+  backBtn: { padding: 8, backgroundColor: Colors.card, borderRadius: 12, borderWidth: 1, borderColor: Colors.border },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 18, color: Colors.text },
 
-  detectCard: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10,
-    marginHorizontal: 20, padding: 16, backgroundColor: Colors.primary + "10",
-    borderRadius: 16, borderWidth: 1, borderColor: Colors.primary + "30", marginBottom: 16,
+  warningCard: {
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    backgroundColor: "#FFF3E0", borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: "#FFE0B2", marginBottom: 16,
   },
-  detectText: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.text, flex: 1 },
+  warningText: { fontFamily: "Inter_400Regular", fontSize: 13, color: "#BF360C", flex: 1, lineHeight: 19 },
 
-  centreCard: {
-    marginHorizontal: 20, padding: 24, backgroundColor: Colors.card,
-    borderRadius: 24, borderWidth: 1, borderColor: Colors.border,
-    alignItems: "center", marginBottom: 20,
+  successBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: Colors.income + "15", borderRadius: 12, padding: 12,
+    marginBottom: 16, borderWidth: 1, borderColor: Colors.income + "30",
+  },
+  successText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.income },
+
+  card: {
+    backgroundColor: Colors.card, borderRadius: 22, padding: 24,
+    borderWidth: 1, borderColor: Colors.border, alignItems: "center", marginBottom: 20,
   },
   iconCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: Colors.primary + "15",
+    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.primary + "15",
     alignItems: "center", justifyContent: "center", marginBottom: 16,
   },
-  cardTitle: {
-    fontFamily: "Inter_700Bold", fontSize: 20, color: Colors.text,
-    textAlign: "center", marginBottom: 10,
-  },
-  cardSub: {
-    fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary,
-    textAlign: "center", lineHeight: 22, marginBottom: 20,
-  },
-  bold: { fontFamily: "Inter_700Bold", color: Colors.text },
+  cardTitle: { fontFamily: "Inter_700Bold", fontSize: 20, color: Colors.text, textAlign: "center", marginBottom: 8 },
+  cardSub: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center", lineHeight: 22, marginBottom: 20 },
 
-  benefitList: { width: "100%", marginBottom: 24, gap: 12 },
-  benefitRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
-  benefitText: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.text, flex: 1, lineHeight: 20 },
+  featureList: { width: "100%", gap: 10, marginBottom: 24 },
+  featureRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  featureText: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.text, flex: 1, lineHeight: 20 },
 
   primaryBtn: {
     flexDirection: "row", alignItems: "center", gap: 8, width: "100%",
-    paddingVertical: 16, borderRadius: 16, backgroundColor: Colors.primary,
-    justifyContent: "center",
+    paddingVertical: 15, borderRadius: 15, backgroundColor: Colors.primary, justifyContent: "center",
   },
-  primaryBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
+  primaryBtnText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" },
+  apkNote: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", marginTop: 12 },
 
-  liveChip: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: Colors.income + "15", borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 7, marginBottom: 20,
-  },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.income },
-  liveText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.income },
+  resultsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  resultsTitle: { fontFamily: "Inter_700Bold", fontSize: 16, color: Colors.text },
+  resultsActions: { flexDirection: "row", alignItems: "center" },
+  selectAllText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.primary },
 
-  supportedRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "center" },
-  bankChip: {
-    backgroundColor: Colors.primary + "12", borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5,
+  txCard: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: Colors.card, borderRadius: 16, padding: 14,
+    borderWidth: 1.5, borderColor: Colors.border, marginBottom: 10,
   },
-  bankChipText: { fontFamily: "Inter_500Medium", fontSize: 12, color: Colors.primary },
+  txCardSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + "08" },
+  txCheck: { justifyContent: "center" },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: Colors.border,
+    alignItems: "center", justifyContent: "center",
+  },
+  checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  txInfo: { flex: 1, gap: 3 },
+  txMerchant: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text },
+  txRaw: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary },
+  txMeta: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary },
+  txRight: { alignItems: "flex-end", gap: 4 },
+  txAmount: { fontFamily: "Inter_700Bold", fontSize: 15 },
+  typeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  typeBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
 
-  infoBox: {
-    flexDirection: "row", alignItems: "flex-start", gap: 8,
-    backgroundColor: Colors.primary + "10", borderRadius: 12,
-    padding: 12, marginBottom: 4, width: "100%",
+  importBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center",
+    backgroundColor: Colors.primary, borderRadius: 16, paddingVertical: 16,
+    marginTop: 8, marginBottom: 12,
+    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
   },
-  infoBoxText: {
-    fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.text,
-    flex: 1, lineHeight: 18,
-  },
+  importBtnDisabled: { opacity: 0.5 },
+  importBtnText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" },
+  rescanBtn: { alignItems: "center", paddingVertical: 10, marginBottom: 8 },
+  rescanText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.textSecondary },
 
-  label: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.text, marginBottom: 8, alignSelf: "flex-start" },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 20 },
+  divider: { flex: 1, height: 1, backgroundColor: Colors.border },
+  dividerText: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
+
+  manualCard: {
+    backgroundColor: Colors.card, borderRadius: 20, padding: 20,
+    borderWidth: 1, borderColor: Colors.border,
+  },
   smsInput: {
-    width: "100%", backgroundColor: Colors.background, borderRadius: 14,
-    borderWidth: 1, borderColor: Colors.border, padding: 14,
-    fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.text, minHeight: 120, lineHeight: 21,
+    backgroundColor: Colors.background, borderRadius: 14, borderWidth: 1,
+    borderColor: Colors.border, padding: 14, height: 130,
+    fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.text, lineHeight: 20,
   },
-  clearBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    alignSelf: "flex-end", marginTop: 6, padding: 4,
-  },
+  clearBtn: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-end", marginTop: 6 },
   clearText: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary },
   parseBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.primary, marginTop: 10,
+    flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "center",
+    backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, marginTop: 12,
   },
-  parseBtnDisabled: { opacity: 0.5 },
+  parseBtnDisabled: { opacity: 0.45 },
   parseBtnText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" },
 
-  reviewCard: {
-    marginHorizontal: 20, backgroundColor: Colors.card, borderRadius: 20,
-    borderWidth: 1, borderColor: Colors.border, padding: 20, marginBottom: 20,
-  },
-  reviewHeader: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    marginBottom: 12, paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: Colors.border,
-  },
-  reviewHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  reviewHeaderText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: Colors.income },
-  typeBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  typeBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 12 },
-  sourceBadge: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    marginBottom: 12, paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: Colors.background, borderRadius: 10, alignSelf: "flex-start",
-  },
-  sourceText: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary },
-  reviewRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border + "55",
-  },
-  reviewRowLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  manualResult: { marginTop: 18, gap: 10 },
+  reviewHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  reviewHeaderText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text, flex: 1 },
+  reviewRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, borderTopWidth: 1, borderTopColor: Colors.border },
+  reviewLeft: { flexDirection: "row", alignItems: "center", gap: 6 },
   reviewLabel: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary },
-  reviewValue: {
-    fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text,
-    maxWidth: "55%" as any, textAlign: "right",
-  },
+  reviewValue: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.text },
+
   saveBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    marginTop: 20, paddingVertical: 16, borderRadius: 14, backgroundColor: Colors.primary,
+    flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "center",
+    backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, marginTop: 8,
   },
-  saveBtnDisabled: { opacity: 0.7 },
-  saveBtnText: { fontFamily: "Inter_700Bold", fontSize: 16, color: "#fff" },
-  tryAnotherBtn: { alignItems: "center", paddingVertical: 14 },
-  tryAnotherText: { fontFamily: "Inter_500Medium", fontSize: 14, color: Colors.textSecondary },
+  saveBtnText: { fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" },
 });
