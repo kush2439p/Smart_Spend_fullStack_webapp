@@ -28,8 +28,15 @@ type Stage = "camera" | "upload" | "processing" | "review";
 const PROCESSING_MSGS = [
   "Uploading receipt...",
   "Analyzing with AI...",
+  "Reading amounts and items...",
   "Extracting details...",
   "Almost done...",
+];
+
+const RETRY_MSGS = [
+  "Retrying scan...",
+  "Trying again with better analysis...",
+  "One more attempt...",
 ];
 
 const ALL_CATEGORIES = [
@@ -106,14 +113,15 @@ export default function ReceiptScannerScreen() {
   const compressImage = useCallback(async (uri: string, mime: string): Promise<string> => {
     if (mime === "application/pdf" || Platform.OS === "web") return uri;
     try {
+      // Keep resolution high enough for AI to read text clearly
       const compressed = await ImageManipulator.manipulateAsync(
         uri,
-        [{ resize: { width: 700 } }],
-        { compress: 0.55, format: ImageManipulator.SaveFormat.JPEG }
+        [{ resize: { width: 1400 } }],
+        { compress: 0.82, format: ImageManipulator.SaveFormat.JPEG }
       );
       return compressed.uri;
     } catch {
-      return uri;
+      return uri; // fallback to original if compression fails
     }
   }, []);
 
@@ -122,34 +130,65 @@ export default function ReceiptScannerScreen() {
     const isCompressible = mime !== "application/pdf" && Platform.OS !== "web";
     const uploadUri = await compressImage(uri, mime);
     const uploadMime = isCompressible ? "image/jpeg" : mime;
-    try {
-      const result = await receiptApi.scan(uploadUri, uploadMime);
-      if (result.error) {
-        setErrorMsg(result.error);
+
+    const MAX_CLIENT_RETRIES = 2;
+    let lastError = "";
+
+    for (let attempt = 0; attempt <= MAX_CLIENT_RETRIES; attempt++) {
+      try {
+        if (attempt > 0) {
+          setProcessingMsg(RETRY_MSGS[attempt - 1] ?? "Retrying...");
+          await new Promise((res) => setTimeout(res, 1000));
+        }
+
+        const result = await receiptApi.scan(uploadUri, uploadMime);
+
+        // Backend already retried — if it returns an error field, show it
+        if (result.error) {
+          lastError = result.error;
+          // Only retry client-side if it looks like a transient failure
+          const isTransient = result.error.includes("attempt") || result.error.includes("try again");
+          if (isTransient && attempt < MAX_CLIENT_RETRIES) continue;
+          setErrorMsg(result.error);
+          setStage("review");
+          return;
+        }
+
+        // Check if extraction looks too empty — retry if so
+        const extractedAmount = result.amount ?? 0;
+        const extractedMerchant = (result.merchant ?? "").toLowerCase();
+        const isEmpty = extractedAmount <= 0 && (extractedMerchant === "" || extractedMerchant === "unknown merchant" || extractedMerchant === "unknown");
+        if (isEmpty && attempt < MAX_CLIENT_RETRIES) {
+          lastError = "Extraction returned empty result";
+          continue;
+        }
+
+        // Success — populate review fields
+        const today = new Date().toISOString().split("T")[0];
+        const receiptDate = result.date || null;
+        setMerchant(result.merchant || "");
+        setAmount(result.amount ? String(result.amount) : "");
+        setDate(today);
+        setCategory(result.category || result.suggestedCategory || "Other");
+        setTxType((result.type as "expense" | "income") || "expense");
+        const baseNotes = result.notes || "";
+        const dateSuffix = receiptDate && receiptDate !== today ? `Receipt date: ${receiptDate}` : "";
+        setNotes([baseNotes, dateSuffix].filter(Boolean).join(" | "));
+        setItems(result.items || []);
+        setCurrency(result.currency || "INR");
         setStage("review");
         return;
-      }
-      const today = new Date().toISOString().split("T")[0];
-      const receiptDate = result.date || null;
 
-      setMerchant(result.merchant || "");
-      setAmount(result.amount ? String(result.amount) : "");
-      // Always use today's date so the transaction lands in the current month's analytics.
-      // If the receipt has a different printed date, it's noted in the notes field.
-      setDate(today);
-      setCategory(result.category || result.suggestedCategory || "Other");
-      setTxType((result.type as "expense" | "income") || "expense");
-      // Append receipt date to notes only if it differs from today
-      const baseNotes = result.notes || "";
-      const dateSuffix = (receiptDate && receiptDate !== today) ? `Receipt date: ${receiptDate}` : "";
-      setNotes([baseNotes, dateSuffix].filter(Boolean).join(" | "));
-      setItems(result.items || []);
-      setCurrency(result.currency || "INR");
-    } catch (e: any) {
-      setErrorMsg(e?.message || "Could not extract data. Please enter details manually.");
+      } catch (e: any) {
+        lastError = e?.message || "Unknown error";
+        if (attempt < MAX_CLIENT_RETRIES) continue;
+      }
     }
+
+    // All retries exhausted
+    setErrorMsg(lastError || "Could not extract data after multiple attempts. Please enter details manually.");
     setStage("review");
-  }, []);
+  }, [compressImage]);
 
   const capturePhoto = useCallback(async () => {
     if (!cameraRef.current) return;
