@@ -43,18 +43,39 @@ public class SmsService {
     }
 
     private Map<String, Object> parseWithGemini(String smsText, String timestamp) throws Exception {
-        String prompt = "You are a financial SMS parser for Indian banking and UPI apps. " +
-                "Analyze this SMS and return ONLY a valid JSON object with no extra text, no markdown:\n" +
+        String prompt = "You are a financial SMS parser for Indian banking and UPI apps.\n" +
+                "Analyze this SMS and return ONLY a raw JSON object — no markdown, no code fences, start with { end with }.\n\n" +
+                "JSON format:\n" +
                 "{\n" +
-                "  \"amount\": total_amount_as_number,\n" +
+                "  \"isTransaction\": true or false,\n" +
+                "  \"amount\": total_amount_as_plain_number,\n" +
                 "  \"type\": \"EXPENSE or INCOME\",\n" +
                 "  \"merchant\": \"payee or payer name\",\n" +
-                "  \"suggestedCategory\": \"one of: Food, Transport, Shopping, Entertainment, Healthcare, Utilities, Education, Travel, Salary, Groceries, Other\",\n" +
+                "  \"suggestedCategory\": \"see list below\",\n" +
                 "  \"date\": \"YYYY-MM-DD or null\"\n" +
                 "}\n\n" +
-                "Rules: type=INCOME when credited/received/salary/cashback/refund. type=EXPENSE when debited/paid/deducted/purchase.\n" +
-                "Extract merchant from 'to X', 'at X', VPA handles like xyz@paytm. Amount must be a plain number.\n\n" +
-                "SMS:\n" + smsText;
+                "STEP 1 — Decide isTransaction:\n" +
+                "Set isTransaction=false for: OTPs, login alerts, SIM card notifications, promotional/marketing messages, low balance warnings, account balance enquiry replies, KYC reminders, mobile number linking, reward points updates, missed call alerts.\n" +
+                "Set isTransaction=true ONLY for actual money movement: debit/credit/payment/transfer/withdrawal/deposit/refund/cashback/salary.\n" +
+                "If isTransaction=false, set amount=0, type=EXPENSE, merchant=null, suggestedCategory=Other.\n\n" +
+                "STEP 2 — For real transactions:\n" +
+                "type=INCOME: credited/received/deposited/refunded/cashback/salary/transferred to your account.\n" +
+                "type=EXPENSE: debited/paid/transferred from your account/purchase/withdrawn.\n" +
+                "merchant: extract from 'to X', 'at X', 'from X', VPA like xyz@paytm, merchant name after 'at '.\n" +
+                "amount: grand total paid/received as a plain number (no commas, no currency symbols).\n\n" +
+                "suggestedCategory must be exactly one of:\n" +
+                "Food (restaurants, Zomato, Swiggy, food delivery, bakery, cafe)\n" +
+                "Transport (Uber, Ola, Rapido, petrol, fuel, metro, IRCTC, bus, cab, auto, Rapido)\n" +
+                "Shopping (Amazon, Flipkart, Myntra, mall, retail, clothing, electronics)\n" +
+                "Groceries (BigBasket, Blinkit, Zepto, supermarket, grocery, vegetables, milk)\n" +
+                "Healthcare (pharmacy, hospital, clinic, doctor, medicine, Apollo, MedPlus, Netmeds)\n" +
+                "Utilities (electricity, BESCOM, water, internet, Jio, Airtel, Vi, gas, DTH, broadband)\n" +
+                "Entertainment (Netflix, Hotstar, Spotify, BookMyShow, cinema, PVR, gaming, OTT)\n" +
+                "Education (school, college, fees, course, Udemy, BYJU, tuition)\n" +
+                "Travel (hotel, MakeMyTrip, Goibibo, OYO, Airbnb, flight, holiday, trip)\n" +
+                "Salary (salary, wage, payroll, stipend, earnings credit from employer)\n" +
+                "Other (anything that doesn't fit the above)\n\n" +
+                "SMS to analyze:\n" + smsText;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -78,8 +99,30 @@ public class SmsService {
         if (s >= 0 && e > s) json = json.substring(s, e + 1);
 
         JsonNode parsed = objectMapper.readTree(json);
+
+        // Reject non-financial messages (OTPs, balance alerts, promos, etc.)
+        boolean isTransaction = parsed.path("isTransaction").asBoolean(true);
+        if (!isTransaction) {
+            log.info("SMS identified as non-transaction (OTP/promo/alert), skipping");
+            Map<String, Object> skip = new HashMap<>();
+            skip.put("isTransaction", false);
+            skip.put("amount", 0.0);
+            return skip;
+        }
+
+        double amount = parsed.path("amount").asDouble(0.0);
+        // Secondary guard: if amount is 0, treat as non-transaction
+        if (amount <= 0) {
+            log.info("SMS parsed with amount=0, treating as non-transaction");
+            Map<String, Object> skip = new HashMap<>();
+            skip.put("isTransaction", false);
+            skip.put("amount", 0.0);
+            return skip;
+        }
+
         Map<String, Object> result = new HashMap<>();
-        result.put("amount", parsed.path("amount").asDouble(0.0));
+        result.put("isTransaction", true);
+        result.put("amount", amount);
         result.put("type", parsed.path("type").asText("EXPENSE").toUpperCase());
         result.put("merchant", parsed.path("merchant").asText("Unknown"));
         result.put("suggestedCategory", parsed.path("suggestedCategory").asText("Other"));

@@ -121,6 +121,9 @@ export const transactionsApi = {
   delete: (id: string) => request<void>("DELETE", `/transactions/${id}`),
 
   getById: (id: string) => request<Transaction>("GET", `/transactions/${id}`),
+
+  update: (id: string, data: Partial<CreateTransactionRequest>) =>
+    request<Transaction>("PUT", `/transactions/${id}`, data),
 };
 
 // ============================================================

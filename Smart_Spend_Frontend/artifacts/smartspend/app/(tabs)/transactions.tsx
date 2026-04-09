@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,10 @@ import {
   RefreshControl,
   Platform,
   Alert,
+  Modal,
+  ScrollView,
+  ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,7 +20,7 @@ import Icon from "@/components/Icon";
 import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
-import { transactionsApi, Transaction } from "@/services/api";
+import { transactionsApi, categoriesApi, Transaction, Category } from "@/services/api";
 import { getCurrencySymbol, convertFromINR } from "@/utils/currency";
 
 const TYPE_FILTERS = ["All", "Income", "Expense"] as const;
@@ -25,29 +29,22 @@ type TypeFilter = typeof TYPE_FILTERS[number];
 const DATE_FILTERS = ["This Week", "This Month", "Last 3 Months", "Last 6 Months"] as const;
 type DateFilter = typeof DATE_FILTERS[number];
 
-// ── Date range helper ──────────────────────────────────────────────────────
 function getDateRange(df: DateFilter): { start: Date; end: Date } {
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-
+  const end = new Date(); end.setHours(23, 59, 59, 999);
+  const start = new Date(); start.setHours(0, 0, 0, 0);
   if (df === "This Week") {
     const day = start.getDay();
-    start.setDate(start.getDate() - (day === 0 ? 6 : day - 1)); // Monday
+    start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
   } else if (df === "This Month") {
     start.setDate(1);
   } else if (df === "Last 3 Months") {
-    start.setMonth(start.getMonth() - 3);
-    start.setDate(1);
+    start.setMonth(start.getMonth() - 3); start.setDate(1);
   } else if (df === "Last 6 Months") {
-    start.setMonth(start.getMonth() - 6);
-    start.setDate(1);
+    start.setMonth(start.getMonth() - 6); start.setDate(1);
   }
   return { start, end };
 }
 
-// ── Group by date ──────────────────────────────────────────────────────────
 function groupByDate(txs: Transaction[]): { title: string; data: Transaction[] }[] {
   const groups: Record<string, { sortKey: number; data: Transaction[] }> = {};
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -55,8 +52,7 @@ function groupByDate(txs: Transaction[]): { title: string; data: Transaction[] }
 
   txs.forEach((t) => {
     const d = new Date(t.date); d.setHours(0, 0, 0, 0);
-    let key: string;
-    let sortKey: number;
+    let key: string; let sortKey: number;
     if (d.getTime() === today.getTime()) { key = "Today"; sortKey = 3; }
     else if (d.getTime() === yesterday.getTime()) { key = "Yesterday"; sortKey = 2; }
     else { key = d.toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" }); sortKey = d.getTime(); }
@@ -90,11 +86,16 @@ export default function TransactionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  // ── Fetch (always fetch all, filter client-side for instant tab switching) ─
+  // Detail/edit modal
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
+
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch enough data to cover longest date range (Last 6 Months)
       const res = await transactionsApi.getAll({ size: 500 });
       setAllTransactions(res.content ?? []);
     } catch {
@@ -106,18 +107,35 @@ export default function TransactionsScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Load categories lazily when detail modal is first opened
+  const categoriesLoaded = useRef(false);
+  const openDetail = useCallback(async (tx: Transaction) => {
+    setSelectedTx(tx);
+    setNoteInput(tx.note ?? "");
+    setEditingNote(false);
+    if (!categoriesLoaded.current) {
+      try {
+        const cats = await categoriesApi.getAll();
+        setCategories(cats);
+        categoriesLoaded.current = true;
+      } catch {}
+    }
+  }, []);
+
+  const closeDetail = () => { setSelectedTx(null); setEditingNote(false); };
+
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const handleDelete = (id: string) => {
     Alert.alert("Delete Transaction", "Are you sure? This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete",
-        style: "destructive",
+        text: "Delete", style: "destructive",
         onPress: async () => {
           try {
             await transactionsApi.delete(id);
             setAllTransactions((prev) => prev.filter((t) => t.id !== id));
+            if (selectedTx?.id === id) closeDetail();
           } catch {
             Alert.alert("Error", "Failed to delete. Please try again.");
           }
@@ -126,27 +144,51 @@ export default function TransactionsScreen() {
     ]);
   };
 
-  // ── Client-side filtering (instant — no API call on tab switch) ────────
+  const handleChangeCategory = async (cat: Category) => {
+    if (!selectedTx) return;
+    setSavingCategory(true);
+    try {
+      await transactionsApi.update(selectedTx.id, { category: cat.name });
+      const updated: Transaction = {
+        ...selectedTx,
+        category: cat.name,
+        categoryIcon: cat.icon,
+        categoryColor: cat.color,
+      };
+      setSelectedTx(updated);
+      setAllTransactions((prev) => prev.map((t) => t.id === selectedTx.id ? updated : t));
+    } catch {
+      Alert.alert("Error", "Could not update category. Please try again.");
+    }
+    setSavingCategory(false);
+  };
+
+  const handleSaveNote = async () => {
+    if (!selectedTx) return;
+    setSavingCategory(true);
+    try {
+      await transactionsApi.update(selectedTx.id, { note: noteInput } as any);
+      const updated: Transaction = { ...selectedTx, note: noteInput };
+      setSelectedTx(updated);
+      setAllTransactions((prev) => prev.map((t) => t.id === selectedTx.id ? updated : t));
+      setEditingNote(false);
+    } catch {
+      Alert.alert("Error", "Could not save note. Please try again.");
+    }
+    setSavingCategory(false);
+  };
+
   const filtered = useMemo(() => {
     let txs = allTransactions;
-
-    // Type filter
     if (typeFilter === "Income") txs = txs.filter((t) => t.type === "income");
     else if (typeFilter === "Expense") txs = txs.filter((t) => t.type === "expense");
-
-    // Date filter
     const { start, end } = getDateRange(dateFilter);
-    txs = txs.filter((t) => {
-      const d = new Date(t.date);
-      return d >= start && d <= end;
-    });
-
+    txs = txs.filter((t) => { const d = new Date(t.date); return d >= start && d <= end; });
     return txs;
   }, [allTransactions, typeFilter, dateFilter]);
 
   const grouped = useMemo(() => groupByDate(filtered), [filtered]);
 
-  // ── Summary totals for current filter ─────────────────────────────────
   const totals = useMemo(() => {
     const income = filtered.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const expense = filtered.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
@@ -167,14 +209,10 @@ export default function TransactionsScreen() {
         </Pressable>
       </View>
 
-      {/* Type Filter Pills — instant switch, no loading */}
+      {/* Type Pills */}
       <View style={styles.pillRow}>
         {TYPE_FILTERS.map((f) => (
-          <Pressable
-            key={f}
-            style={[styles.pill, typeFilter === f && styles.pillActive]}
-            onPress={() => setTypeFilter(f)}
-          >
+          <Pressable key={f} style={[styles.pill, typeFilter === f && styles.pillActive]} onPress={() => setTypeFilter(f)}>
             <Text style={[styles.pillText, typeFilter === f && styles.pillTextActive]}>{f}</Text>
           </Pressable>
         ))}
@@ -186,11 +224,7 @@ export default function TransactionsScreen() {
           <Text style={styles.extFilterLabel}>Date Range</Text>
           <View style={styles.pillRow}>
             {DATE_FILTERS.map((f) => (
-              <Pressable
-                key={f}
-                style={[styles.pill, dateFilter === f && styles.pillActive]}
-                onPress={() => setDateFilter(f)}
-              >
+              <Pressable key={f} style={[styles.pill, dateFilter === f && styles.pillActive]} onPress={() => setDateFilter(f)}>
                 <Text style={[styles.pillText, dateFilter === f && styles.pillTextActive]}>{f}</Text>
               </Pressable>
             ))}
@@ -254,25 +288,163 @@ export default function TransactionsScreen() {
           <View>
             <Text style={styles.groupHeader}>{group.title}</Text>
             {group.data.map((t) => (
-              <SwipeableTransaction key={t.id} transaction={t} onDelete={handleDelete} currency={currency} />
+              <SwipeableTransaction
+                key={t.id}
+                transaction={t}
+                onDelete={handleDelete}
+                onTap={openDetail}
+                currency={currency}
+              />
             ))}
           </View>
         )}
       />
 
       {/* FAB */}
-      <Pressable
-        style={[styles.fab, { bottom: tabBarHeight + 16 }]}
-        onPress={() => router.push("/add-transaction")}
-      >
+      <Pressable style={[styles.fab, { bottom: tabBarHeight + 16 }]} onPress={() => router.push("/add-transaction")}>
         <Icon name="plus" size={24} color="#fff" />
       </Pressable>
+
+      {/* ── Transaction Detail Modal ─────────────────────────────────── */}
+      <Modal visible={!!selectedTx} animationType="slide" transparent onRequestClose={closeDetail}>
+        <Pressable style={styles.modalOverlay} onPress={closeDetail}>
+          <Pressable
+            style={[styles.modalSheet, { paddingBottom: insets.bottom + 24 }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {selectedTx && (
+              <>
+                {/* Sheet handle */}
+                <View style={styles.sheetHandle} />
+
+                {/* Top row */}
+                <View style={styles.detailHeader}>
+                  <View style={[styles.detailIcon, { backgroundColor: (selectedTx.categoryColor || "#6C63FF") + "20" }]}>
+                    <Text style={{ fontSize: 26 }}>{selectedTx.categoryIcon || "💰"}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.detailTitle}>{selectedTx.title}</Text>
+                    <Text style={styles.detailMeta}>
+                      {selectedTx.category} · {new Date(selectedTx.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </Text>
+                  </View>
+                  <Text style={[styles.detailAmount, { color: selectedTx.type === "income" ? Colors.income : Colors.expense }]}>
+                    {selectedTx.type === "income" ? "+" : "-"}{symbol}
+                    {convertFromINR(Math.abs(selectedTx.amount), currency).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+
+                {/* Source badge */}
+                {(() => {
+                  const src = SOURCE_LABELS[selectedTx.source] ?? SOURCE_LABELS.manual;
+                  return (
+                    <View style={[styles.detailBadge, { backgroundColor: src.color + "20" }]}>
+                      <Text style={[styles.detailBadgeText, { color: src.color }]}>
+                        Added via {src.label}
+                      </Text>
+                    </View>
+                  );
+                })()}
+
+                {/* Notes section */}
+                <View style={styles.detailSection}>
+                  <View style={styles.detailSectionHeader}>
+                    <Text style={styles.detailSectionTitle}>Notes</Text>
+                    <Pressable onPress={() => setEditingNote(true)}>
+                      <Text style={styles.editLink}>{editingNote ? "" : selectedTx.note ? "Edit" : "Add note"}</Text>
+                    </Pressable>
+                  </View>
+
+                  {editingNote ? (
+                    <View style={{ gap: 8 }}>
+                      <TextInput
+                        style={styles.noteInput}
+                        value={noteInput}
+                        onChangeText={setNoteInput}
+                        placeholder="Write a note..."
+                        placeholderTextColor={Colors.textSecondary}
+                        multiline
+                        autoFocus
+                      />
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        <Pressable style={styles.noteCancel} onPress={() => { setEditingNote(false); setNoteInput(selectedTx.note ?? ""); }}>
+                          <Text style={{ fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.textSecondary }}>Cancel</Text>
+                        </Pressable>
+                        <Pressable style={[styles.noteSave, { opacity: savingCategory ? 0.7 : 1 }]} onPress={handleSaveNote} disabled={savingCategory}>
+                          {savingCategory ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 13, color: "#fff" }}>Save</Text>}
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : (
+                    <Text style={styles.noteText}>
+                      {selectedTx.note && selectedTx.note.trim() ? selectedTx.note : "No notes added"}
+                    </Text>
+                  )}
+                </View>
+
+                {/* Change Category */}
+                <View style={styles.detailSection}>
+                  <View style={styles.detailSectionHeader}>
+                    <Text style={styles.detailSectionTitle}>Category</Text>
+                    {savingCategory && !editingNote && <ActivityIndicator size="small" color={Colors.primary} />}
+                  </View>
+                  {categories.length === 0 ? (
+                    <Text style={styles.noteText}>Loading categories...</Text>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={{ flexDirection: "row", gap: 8 }}>
+                        {categories
+                          .filter((c) => c.type === selectedTx.type || c.type === "both")
+                          .map((cat) => (
+                            <Pressable
+                              key={cat.id}
+                              style={[
+                                styles.catChip,
+                                cat.name === selectedTx.category && {
+                                  borderColor: cat.color,
+                                  backgroundColor: cat.color + "20",
+                                },
+                              ]}
+                              onPress={() => handleChangeCategory(cat)}
+                              disabled={savingCategory}
+                            >
+                              <Text style={{ fontSize: 14 }}>{cat.icon}</Text>
+                              <Text style={[styles.catChipText, cat.name === selectedTx.category && { color: cat.color }]}>
+                                {cat.name}
+                              </Text>
+                            </Pressable>
+                          ))}
+                      </View>
+                    </ScrollView>
+                  )}
+                </View>
+
+                {/* Delete button */}
+                <Pressable
+                  style={styles.deleteBtn}
+                  onPress={() => handleDelete(selectedTx.id)}
+                >
+                  <Icon name="trash-2" size={16} color={Colors.expense} />
+                  <Text style={styles.deleteBtnText}>Delete Transaction</Text>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 // ── Swipeable transaction card ─────────────────────────────────────────────
-function SwipeableTransaction({ transaction: t, onDelete, currency }: { transaction: Transaction; onDelete: (id: string) => void; currency: string }) {
+function SwipeableTransaction({
+  transaction: t, onDelete, onTap, currency,
+}: {
+  transaction: Transaction;
+  onDelete: (id: string) => void;
+  onTap: (tx: Transaction) => void;
+  currency: string;
+}) {
   const src = SOURCE_LABELS[t.source] ?? SOURCE_LABELS.manual;
   const symbol = getCurrencySymbol(currency);
   const displayAmount = convertFromINR(Math.abs(t.amount), currency);
@@ -289,7 +461,7 @@ function SwipeableTransaction({ transaction: t, onDelete, currency }: { transact
         </Pressable>
       )}
     >
-      <View style={styles.txCard}>
+      <Pressable style={styles.txCard} onPress={() => onTap(t)}>
         <View style={[styles.txIcon, { backgroundColor: (t.categoryColor || "#6C63FF") + "20" }]}>
           <Text style={styles.txEmoji}>{t.categoryIcon || "💰"}</Text>
         </View>
@@ -303,11 +475,14 @@ function SwipeableTransaction({ transaction: t, onDelete, currency }: { transact
           <Text style={styles.txCat}>
             {t.category} · {new Date(t.date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
           </Text>
+          {t.note && t.note.trim() ? (
+            <Text style={styles.txNote} numberOfLines={1}>📝 {t.note}</Text>
+          ) : null}
         </View>
         <Text style={[styles.txAmount, { color: t.type === "income" ? Colors.income : Colors.expense }]}>
           {t.type === "income" ? "+" : "-"}{symbol}{amountStr}
         </Text>
-      </View>
+      </Pressable>
     </Swipeable>
   );
 }
@@ -349,6 +524,7 @@ const styles = StyleSheet.create({
   txInfo: { flex: 1 },
   txTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text },
   txCat: { fontFamily: "Inter_400Regular", fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  txNote: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary, marginTop: 3, fontStyle: "italic" },
   txAmount: { fontFamily: "Inter_700Bold", fontSize: 15 },
   sourceBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   sourceBadgeText: { fontFamily: "Inter_500Medium", fontSize: 10 },
@@ -360,11 +536,44 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: "Inter_500Medium", fontSize: 15, color: Colors.textSecondary },
   emptyHint: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.border },
 
-  fab: {
-    position: "absolute", right: 20,
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: Colors.primary,
-    alignItems: "center", justifyContent: "center",
-    shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
+  fab: { position: "absolute", right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", shadowColor: Colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 },
+
+  // Detail modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalSheet: {
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 24, gap: 16,
+    maxHeight: "90%",
   },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: "center", marginBottom: 8 },
+
+  detailHeader: { flexDirection: "row", alignItems: "center", gap: 14 },
+  detailIcon: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  detailTitle: { fontFamily: "Inter_700Bold", fontSize: 17, color: Colors.text },
+  detailMeta: { fontFamily: "Inter_400Regular", fontSize: 13, color: Colors.textSecondary, marginTop: 3 },
+  detailAmount: { fontFamily: "Inter_700Bold", fontSize: 20 },
+
+  detailBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  detailBadgeText: { fontFamily: "Inter_500Medium", fontSize: 12 },
+
+  detailSection: { gap: 10 },
+  detailSectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  detailSectionTitle: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.text },
+  editLink: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.primary },
+
+  noteText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary, lineHeight: 20 },
+  noteInput: {
+    backgroundColor: Colors.background, borderRadius: 12, borderWidth: 1, borderColor: Colors.border,
+    paddingHorizontal: 14, paddingVertical: 10, fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text,
+    minHeight: 72, textAlignVertical: "top",
+  },
+  noteCancel: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10, borderWidth: 1, borderColor: Colors.border },
+  noteSave: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 10, backgroundColor: Colors.primary },
+
+  catChip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.background },
+  catChipText: { fontFamily: "Inter_500Medium", fontSize: 12, color: Colors.text },
+
+  deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderColor: Colors.expense + "50", backgroundColor: Colors.expense + "10" },
+  deleteBtnText: { fontFamily: "Inter_600SemiBold", fontSize: 14, color: Colors.expense },
 });

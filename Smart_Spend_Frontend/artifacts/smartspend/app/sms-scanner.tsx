@@ -55,10 +55,40 @@ const BANK_KEYWORDS = [
   "deducted", "transferred", "neft", "imps", "rtgs",
 ];
 
+// Patterns that indicate it is NOT an actual money movement
+const NON_TRANSACTION_PATTERNS = [
+  /\botp\b/i,
+  /one.?time.?password/i,
+  /\bpassword\b.*\bexpire/i,
+  /your.*\bbalance\s+is\b/i,
+  /\bavail(?:able)?\s+bal/i,
+  /(?:account|a\/c)\s+balance\s+is/i,
+  /\bbal\s*[:=]\s*(?:rs\.?|inr|₹)/i,           // Bal: Rs 25000
+  /\bminimum\s+due\b/i,
+  /\bstatement\b.*\bperiod\b/i,
+  /\bmini\s+statement\b/i,
+  /\bno\s+transaction\b/i,
+  /transaction\s+(?:failed|declined|unsuccessful)/i,
+  /\bfailed\b.*\btransaction\b/i,
+  /\btransaction\s+not\s+processed\b/i,
+  /dear\s+customer.*(?:click|visit|call)\s/i,    // Promotional
+  /\bkyc\b.*(?:update|complete|pending)/i,
+  /\blink\s+(?:your|aadhaar|pan)\b/i,
+  /\bmissed\s+call\b/i,
+  /\breward\s+point/i,
+  /\bdue\s+date\b/i,
+  /\bcredit\s+limit\b/i,
+  /\bhttps?:\/\//i,                              // Links in SMS = usually promo
+];
+
 function looksLikeBankSMS(text: string): boolean {
   if (!text || text.length < 15) return false;
   const lower = text.toLowerCase();
   return BANK_KEYWORDS.filter((k) => lower.includes(k)).length >= 2;
+}
+
+function looksLikeNonTransaction(text: string): boolean {
+  return NON_TRANSACTION_PATTERNS.some((p) => p.test(text));
 }
 
 // ── Improved credit/debit detector ────────────────────────────────────────
@@ -93,6 +123,9 @@ function detectType(text: string): "INCOME" | "EXPENSE" {
 
 // ── Client-side SMS parser ─────────────────────────────────────────────────
 function parseSmsFast(text: string, idx: number, smsDate?: number): ParsedSms | null {
+  // Reject non-financial messages before any parsing
+  if (looksLikeNonTransaction(text)) return null;
+
   let amount = 0;
   const amountPatterns = [
     /(?:rs\.?|inr|₹)\s*([\d,]+\.?\d*)/i,
