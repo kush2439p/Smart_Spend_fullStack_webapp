@@ -127,20 +127,30 @@ export default function TransactionsScreen() {
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const handleDelete = (id: string) => {
+    const doDelete = async () => {
+      try {
+        await transactionsApi.delete(id);
+        setAllTransactions((prev) => prev.filter((t) => t.id !== id));
+        if (selectedTx?.id === id) closeDetail();
+      } catch {
+        if (Platform.OS === "web") {
+          window.alert("Failed to delete. Please try again.");
+        } else {
+          Alert.alert("Error", "Failed to delete. Please try again.");
+        }
+      }
+    };
+
+    // Alert.alert's multi-button callbacks don't fire on web — use native confirm there
+    if (Platform.OS === "web") {
+      const ok = window.confirm("Delete this transaction? This cannot be undone.");
+      if (ok) doDelete();
+      return;
+    }
+
     Alert.alert("Delete Transaction", "Are you sure? This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete", style: "destructive",
-        onPress: async () => {
-          try {
-            await transactionsApi.delete(id);
-            setAllTransactions((prev) => prev.filter((t) => t.id !== id));
-            if (selectedTx?.id === id) closeDetail();
-          } catch {
-            Alert.alert("Error", "Failed to delete. Please try again.");
-          }
-        },
-      },
+      { text: "Delete", style: "destructive", onPress: doDelete },
     ]);
   };
 
