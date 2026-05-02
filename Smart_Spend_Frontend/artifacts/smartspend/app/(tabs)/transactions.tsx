@@ -21,6 +21,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 import { transactionsApi, categoriesApi, Transaction, Category } from "@/services/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { getCurrencySymbol, convertFromINR } from "@/utils/currency";
 
 const TYPE_FILTERS = ["All", "Income", "Expense"] as const;
@@ -78,6 +79,12 @@ export default function TransactionsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { user } = useAuth();
   const currency = user?.currency || "INR";
+  const queryClient = useQueryClient();
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+  };
 
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,11 +135,23 @@ export default function TransactionsScreen() {
 
   const handleDelete = (id: string) => {
     const doDelete = async () => {
+      // Snapshot only the row being deleted (closure-safe across confirm dialog)
+      let removedRow: Transaction | undefined;
+      setAllTransactions((prev) => {
+        removedRow = prev.find((t) => t.id === id);
+        return prev.filter((t) => t.id !== id);
+      });
+      if (selectedTx?.id === id) closeDetail();
       try {
         await transactionsApi.delete(id);
-        setAllTransactions((prev) => prev.filter((t) => t.id !== id));
-        if (selectedTx?.id === id) closeDetail();
+        invalidateAll();
       } catch {
+        // Restore only this row if it isn't already back; preserves other concurrent edits
+        if (removedRow) {
+          setAllTransactions((prev) =>
+            prev.some((t) => t.id === id) ? prev : [...prev, removedRow!]
+          );
+        }
         if (Platform.OS === "web") {
           window.alert("Failed to delete. Please try again.");
         } else {
@@ -156,17 +175,20 @@ export default function TransactionsScreen() {
 
   const handleChangeCategory = async (cat: Category) => {
     if (!selectedTx) return;
+    const txId = selectedTx.id; // capture immutable id before await
     setSavingCategory(true);
     try {
-      await transactionsApi.update(selectedTx.id, { category: cat.name });
-      const updated: Transaction = {
-        ...selectedTx,
-        category: cat.name,
-        categoryIcon: cat.icon,
-        categoryColor: cat.color,
-      };
-      setSelectedTx(updated);
-      setAllTransactions((prev) => prev.map((t) => t.id === selectedTx.id ? updated : t));
+      await transactionsApi.update(txId, { category: cat.name });
+      setAllTransactions((prev) =>
+        prev.map((t) => t.id === txId
+          ? { ...t, category: cat.name, categoryIcon: cat.icon, categoryColor: cat.color }
+          : t)
+      );
+      // Only update the open sheet if it still shows the same tx
+      setSelectedTx((curr) => curr && curr.id === txId
+        ? { ...curr, category: cat.name, categoryIcon: cat.icon, categoryColor: cat.color }
+        : curr);
+      invalidateAll();
     } catch {
       Alert.alert("Error", "Could not update category. Please try again.");
     }
@@ -175,13 +197,17 @@ export default function TransactionsScreen() {
 
   const handleSaveNote = async () => {
     if (!selectedTx) return;
+    const txId = selectedTx.id;        // capture immutable id before await
+    const noteValue = noteInput;       // capture input snapshot
     setSavingCategory(true);
     try {
-      await transactionsApi.update(selectedTx.id, { note: noteInput } as any);
-      const updated: Transaction = { ...selectedTx, note: noteInput };
-      setSelectedTx(updated);
-      setAllTransactions((prev) => prev.map((t) => t.id === selectedTx.id ? updated : t));
+      await transactionsApi.update(txId, { note: noteValue } as any);
+      setAllTransactions((prev) =>
+        prev.map((t) => t.id === txId ? { ...t, note: noteValue } : t)
+      );
+      setSelectedTx((curr) => curr && curr.id === txId ? { ...curr, note: noteValue } : curr);
       setEditingNote(false);
+      invalidateAll();
     } catch {
       Alert.alert("Error", "Could not save note. Please try again.");
     }
