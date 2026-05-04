@@ -46,13 +46,9 @@ function AuthGuard() {
     if (!user && inProtected) {
       router.replace("/onboarding");
     } else if (user && inAuthScreen) {
-      if (isEmailVerified) {
-        router.replace("/(tabs)");
-      }
-    } else if (user && inProtected && !isEmailVerified) {
-      router.replace("/verify-email");
+      router.replace("/(tabs)");
     }
-  }, [user, segments, isLoading, isEmailVerified]);
+  }, [user, segments, isLoading]);
 
   return null;
 }
