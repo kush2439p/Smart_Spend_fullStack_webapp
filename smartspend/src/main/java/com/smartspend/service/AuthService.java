@@ -39,16 +39,13 @@ public class AuthService {
             throw new RuntimeException("This email is already registered. Please login instead.");
         }
 
-        String verificationToken = UUID.randomUUID().toString();
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(User.Role.USER)
                 .currency("INR")
-                .emailVerified(false)
-                .verificationToken(verificationToken)
-                .verificationTokenExpiry(LocalDateTime.now().plusHours(24))
+                .emailVerified(true)
                 .build();
 
         userRepository.save(user);
@@ -56,21 +53,26 @@ public class AuthService {
         // Seed default categories for new user
         categoryService.seedDefaultCategories(user);
 
-        // Send email verification link
+        // Send welcome email (best-effort, non-blocking)
         try {
-            emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
+            emailService.sendWelcomeEmail(user.getEmail(), user.getName());
         } catch (Exception e) {
-            log.error("Failed to send verification email to {}: {}", user.getEmail(), e.getMessage());
+            log.error("Failed to send welcome email to {}: {}", user.getEmail(), e.getMessage());
         }
 
+        // Auto-login: issue JWT immediately so user can use the app right away
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        String token = jwtService.generateToken(userDetails);
+
         return AuthResponse.builder()
-                .message("Registration successful! Please check your email to verify your account.")
+                .token(token)
+                .message("Registration successful! Welcome to SmartSpend.")
                 .user(AuthResponse.UserDto.builder()
                         .id(user.getId().toString())
                         .name(user.getName())
                         .email(user.getEmail())
                         .currency(user.getCurrency())
-                        .emailVerified(false)
+                        .emailVerified(true)
                         .build())
                 .build();
     }
