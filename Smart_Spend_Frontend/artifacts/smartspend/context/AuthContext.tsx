@@ -99,10 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, password: string) => {
     const res = await authApi.register(name, email, password);
-    // Store pending email so verify-email screen can use it for resend
-    await AsyncStorage.setItem("pending_verify_email", email);
-    // Do NOT log user in — they must verify email first
-    router.replace({ pathname: "/verify-email", params: { email } });
+    // Backend now auto-verifies and returns a token — log user in immediately
+    if (res.token) {
+      await AsyncStorage.setItem("auth_token", res.token);
+      await AsyncStorage.setItem("auth_user", JSON.stringify(res.user));
+      setToken(res.token);
+      setUser(res.user);
+      setIsEmailVerified(true);
+    } else {
+      // Fallback (older backend without auto-verify): log them in via login()
+      await login(email, password);
+    }
     return { email };
   };
 
